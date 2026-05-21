@@ -1,0 +1,4871 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Maze Builder</title>
+  <style>
+/* Maze Builder - Main Styles */
+
+:root {
+  /* Color Palette (colorblind-safe) */
+  --color-wall: #2d3748;
+  --color-pathway: #f7fafc;
+  --color-start: #38a169;
+  --color-end: #e53e3e;
+  --color-path-overlay: #4299e1;
+  --color-unreachable: #fbd38d;
+  --color-warning: #ed8936;
+  --color-focus: #805ad5;
+
+  /* UI Colors */
+  --color-bg: #1a202c;
+  --color-surface: #2d3748;
+  --color-surface-hover: #4a5568;
+  --color-text: #e2e8f0;
+  --color-text-muted: #a0aec0;
+  --color-border: #4a5568;
+  --color-primary: #4299e1;
+  --color-primary-hover: #3182ce;
+  --color-danger: #e53e3e;
+  --color-success: #38a169;
+
+  /* Spacing */
+  --space-xs: 4px;
+  --space-sm: 8px;
+  --space-md: 12px;
+  --space-lg: 16px;
+  --space-xl: 24px;
+
+  /* Typography */
+  --font-sans: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+  --font-mono: 'SF Mono', 'Fira Code', 'Cascadia Code', monospace;
+  --font-size-sm: 12px;
+  --font-size-md: 14px;
+  --font-size-lg: 16px;
+
+  /* Layout */
+  --header-height: 48px;
+  --toolbar-height: 44px;
+  --status-height: 28px;
+  --config-width: 220px;
+}
+
+/* Reset */
+*, *::before, *::after {
+  box-sizing: border-box;
+  margin: 0;
+  padding: 0;
+}
+
+body {
+  font-family: var(--font-sans);
+  font-size: var(--font-size-md);
+  color: var(--color-text);
+  background: var(--color-bg);
+  overflow: hidden;
+  height: 100vh;
+}
+
+/* App Layout */
+.app-layout {
+  display: grid;
+  grid-template-rows: var(--header-height) 1fr var(--toolbar-height) var(--status-height);
+  height: 100vh;
+}
+
+/* Header */
+.header-bar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 0 var(--space-lg);
+  background: var(--color-surface);
+  border-bottom: 1px solid var(--color-border);
+}
+
+.app-title {
+  font-size: var(--font-size-lg);
+  font-weight: 600;
+  color: var(--color-text);
+}
+
+.header-right {
+  display: flex;
+  gap: var(--space-sm);
+}
+
+.header-btn {
+  padding: var(--space-xs) var(--space-md);
+  background: transparent;
+  color: var(--color-text);
+  border: 1px solid var(--color-border);
+  border-radius: 4px;
+  cursor: pointer;
+  font-size: var(--font-size-sm);
+  transition: background 0.15s;
+}
+
+.header-btn:hover {
+  background: var(--color-surface-hover);
+}
+
+/* Main Content */
+.main-content {
+  display: grid;
+  grid-template-columns: var(--config-width) 1fr;
+  overflow: hidden;
+}
+
+/* Config Panel */
+.config-panel {
+  background: var(--color-surface);
+  border-right: 1px solid var(--color-border);
+  padding: var(--space-lg);
+  overflow-y: auto;
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-lg);
+}
+
+.config-heading {
+  font-size: var(--font-size-sm);
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+  color: var(--color-text-muted);
+  margin-bottom: var(--space-sm);
+}
+
+.config-section {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-xs);
+}
+
+/* Canvas Viewport */
+.canvas-viewport {
+  position: relative;
+  overflow: hidden;
+  background: #171923;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+#maze-canvas {
+  position: absolute;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 100%;
+  cursor: crosshair;
+}
+
+#maze-canvas:focus {
+  outline: 2px solid var(--color-focus);
+  outline-offset: -2px;
+}
+
+.empty-state {
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  transform: translate(-50%, -50%);
+  text-align: center;
+  color: var(--color-text);
+  font-size: var(--font-size-lg);
+  padding: var(--space-xl);
+  z-index: 10;
+  pointer-events: none;
+}
+
+.empty-state p {
+  max-width: 300px;
+  line-height: 1.6;
+  opacity: 0.7;
+}
+
+.coordinates {
+  position: absolute;
+  bottom: var(--space-sm);
+  left: var(--space-sm);
+  font-family: var(--font-mono);
+  font-size: var(--font-size-sm);
+  color: var(--color-text-muted);
+  background: rgba(26, 32, 44, 0.8);
+  padding: 2px var(--space-sm);
+  border-radius: 3px;
+}
+
+.minimap {
+  position: absolute;
+  bottom: var(--space-md);
+  right: var(--space-md);
+  border: 1px solid var(--color-border);
+  border-radius: 4px;
+  background: var(--color-bg);
+}
+
+/* Toolbar */
+.toolbar {
+  display: flex;
+  align-items: center;
+  padding: 0 var(--space-lg);
+  gap: var(--space-sm);
+  background: var(--color-surface);
+  border-top: 1px solid var(--color-border);
+}
+
+.tool-group {
+  display: flex;
+  align-items: center;
+  gap: var(--space-xs);
+}
+
+.tool-separator {
+  width: 1px;
+  height: 24px;
+  background: var(--color-border);
+  margin: 0 var(--space-sm);
+}
+
+/* Status Bar */
+.status-bar {
+  display: flex;
+  align-items: center;
+  padding: 0 var(--space-lg);
+  gap: var(--space-sm);
+  background: var(--color-bg);
+  border-top: 1px solid var(--color-border);
+  font-size: var(--font-size-sm);
+  color: var(--color-text-muted);
+  font-family: var(--font-mono);
+}
+
+.status-sep {
+  color: var(--color-border);
+}
+
+.status-warning {
+  color: var(--color-warning);
+  font-weight: 600;
+}
+
+/* Modal */
+.modal-overlay {
+  position: fixed;
+  inset: 0;
+  background: rgba(0, 0, 0, 0.6);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 1000;
+}
+
+.modal-overlay[hidden] {
+  display: none;
+}
+
+.modal {
+  background: var(--color-surface);
+  border: 1px solid var(--color-border);
+  border-radius: 8px;
+  padding: var(--space-xl);
+  max-width: 600px;
+  max-height: 80vh;
+  overflow-y: auto;
+  min-width: 320px;
+}
+
+/* Maze Builder - Component Styles */
+
+/* Radio & Checkbox Inputs */
+.radio-group {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-xs);
+}
+
+.radio-label,
+.checkbox-label {
+  display: flex;
+  align-items: center;
+  gap: var(--space-sm);
+  cursor: pointer;
+  font-size: var(--font-size-md);
+  padding: var(--space-xs) 0;
+}
+
+.radio-label.indent {
+  padding-left: var(--space-lg);
+}
+
+.radio-label input,
+.checkbox-label input {
+  accent-color: var(--color-primary);
+}
+
+/* Number & Text Inputs */
+.input-row {
+  display: flex;
+  align-items: center;
+  gap: var(--space-sm);
+}
+
+.input-row label {
+  font-size: var(--font-size-sm);
+  color: var(--color-text-muted);
+  min-width: 36px;
+}
+
+.dim-input,
+.seed-input {
+  width: 80px;
+  padding: var(--space-xs) var(--space-sm);
+  background: var(--color-bg);
+  color: var(--color-text);
+  border: 1px solid var(--color-border);
+  border-radius: 4px;
+  font-size: var(--font-size-md);
+  font-family: var(--font-mono);
+}
+
+.seed-input {
+  width: 110px;
+}
+
+.dim-input:focus,
+.seed-input:focus,
+.select-input:focus {
+  outline: none;
+  border-color: var(--color-primary);
+  box-shadow: 0 0 0 2px rgba(66, 153, 225, 0.3);
+}
+
+/* Select */
+.select-input {
+  width: 100%;
+  padding: var(--space-xs) var(--space-sm);
+  background: var(--color-bg);
+  color: var(--color-text);
+  border: 1px solid var(--color-border);
+  border-radius: 4px;
+  font-size: var(--font-size-md);
+  margin-bottom: var(--space-sm);
+}
+
+/* Sliders */
+.slider-row {
+  display: flex;
+  align-items: center;
+  gap: var(--space-sm);
+}
+
+.slider {
+  flex: 1;
+  accent-color: var(--color-primary);
+}
+
+.slider-value {
+  font-family: var(--font-mono);
+  font-size: var(--font-size-sm);
+  color: var(--color-text-muted);
+  min-width: 28px;
+  text-align: right;
+}
+
+/* Buttons */
+.primary-btn {
+  width: 100%;
+  padding: var(--space-sm) var(--space-md);
+  background: var(--color-primary);
+  color: white;
+  border: none;
+  border-radius: 4px;
+  font-size: var(--font-size-md);
+  font-weight: 600;
+  cursor: pointer;
+  transition: background 0.15s;
+}
+
+.primary-btn:hover {
+  background: var(--color-primary-hover);
+}
+
+.secondary-btn {
+  width: 100%;
+  padding: var(--space-sm) var(--space-md);
+  background: transparent;
+  color: var(--color-text);
+  border: 1px solid var(--color-border);
+  border-radius: 4px;
+  font-size: var(--font-size-md);
+  cursor: pointer;
+  transition: background 0.15s;
+}
+
+.secondary-btn:hover {
+  background: var(--color-surface-hover);
+}
+
+.small-btn {
+  padding: var(--space-xs) var(--space-sm);
+  background: transparent;
+  color: var(--color-text-muted);
+  border: 1px solid var(--color-border);
+  border-radius: 3px;
+  font-size: var(--font-size-sm);
+  cursor: pointer;
+}
+
+.small-btn:hover {
+  background: var(--color-surface-hover);
+  color: var(--color-text);
+}
+
+/* Tool Buttons */
+.tool-btn {
+  padding: var(--space-xs) var(--space-sm);
+  background: transparent;
+  color: var(--color-text);
+  border: 1px solid transparent;
+  border-radius: 4px;
+  cursor: pointer;
+  font-size: var(--font-size-sm);
+  transition: all 0.15s;
+  min-width: 32px;
+  text-align: center;
+}
+
+.tool-btn:hover {
+  background: var(--color-surface-hover);
+  border-color: var(--color-border);
+}
+
+.tool-btn.active {
+  background: var(--color-primary);
+  color: white;
+  border-color: var(--color-primary);
+}
+
+.tool-btn:disabled {
+  opacity: 0.4;
+  cursor: not-allowed;
+}
+
+.tool-icon {
+  font-size: 16px;
+}
+
+.toggle-btn {
+  border: 1px solid var(--color-border);
+  font-weight: 600;
+}
+
+/* Toolbar Checkboxes */
+.toolbar-checkbox {
+  display: flex;
+  align-items: center;
+  gap: var(--space-xs);
+  font-size: var(--font-size-sm);
+  color: var(--color-text-muted);
+  cursor: pointer;
+}
+
+.toolbar-checkbox input {
+  accent-color: var(--color-primary);
+}
+
+/* Validation Errors */
+.validation-error {
+  font-size: var(--font-size-sm);
+  color: var(--color-danger);
+  padding: var(--space-xs) 0;
+}
+
+/* Config Actions */
+.config-actions {
+  margin-top: auto;
+  gap: var(--space-sm);
+}
+
+/* Help Button */
+.help-btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 18px;
+  height: 18px;
+  border-radius: 50%;
+  border: 1px solid var(--color-text-muted);
+  background: transparent;
+  color: var(--color-text-muted);
+  font-size: 11px;
+  font-weight: 700;
+  cursor: pointer;
+  vertical-align: middle;
+  margin-left: var(--space-xs);
+  padding: 0;
+  line-height: 1;
+  transition: all 0.15s;
+}
+
+.help-btn:hover {
+  border-color: var(--color-primary);
+  color: var(--color-primary);
+  background: rgba(66, 153, 225, 0.1);
+}
+
+/* Object tool buttons */
+.obj-btn.active {
+  background: var(--color-success);
+  color: white;
+  border-color: var(--color-success);
+}
+
+.help-modal-body {
+  font-size: var(--font-size-md);
+  line-height: 1.7;
+  color: var(--color-text);
+}
+
+.help-modal-body strong {
+  color: var(--color-primary);
+}
+
+.help-modal-body table {
+  width: 100%;
+  border-collapse: collapse;
+  margin: var(--space-md) 0;
+  font-size: var(--font-size-sm);
+}
+
+.help-modal-body th,
+.help-modal-body td {
+  text-align: left;
+  padding: var(--space-xs) var(--space-sm);
+  border-bottom: 1px solid var(--color-border);
+}
+
+.help-modal-body th {
+  color: var(--color-text-muted);
+  font-weight: 600;
+}
+
+/* Modal Content */
+.modal-title {
+  font-size: var(--font-size-lg);
+  font-weight: 600;
+  margin-bottom: var(--space-md);
+}
+
+.modal-body {
+  margin-bottom: var(--space-lg);
+  color: var(--color-text-muted);
+  line-height: 1.5;
+}
+
+.modal-actions {
+  display: flex;
+  justify-content: flex-end;
+  gap: var(--space-sm);
+}
+
+.modal-preview {
+  font-family: var(--font-mono);
+  font-size: var(--font-size-sm);
+  background: var(--color-bg);
+  border: 1px solid var(--color-border);
+  border-radius: 4px;
+  padding: var(--space-md);
+  max-height: 300px;
+  overflow: auto;
+  white-space: pre;
+  line-height: 1.4;
+  margin-bottom: var(--space-lg);
+}
+  </style>
+</head>
+<body>
+  <div class="app-layout">
+    <!-- Header Bar -->
+    <header class="header-bar">
+      <div class="header-left" style="display: flex; align-items: center;">
+        <img src="maze-builder-logo.png" alt="Maze Builder" style="height: 32px; width: auto;">
+        <a href="https://www.andrewdoss.com" target="_blank" rel="noopener" style="font-size: 11px; color: var(--color-text-muted); text-decoration: none; margin-left: 16px; white-space: nowrap;">Copyright © 2026 Andrew Doss. All Rights Reserved.</a>
+      </div>
+      <div class="header-right">
+        <button class="help-btn" data-help="file-operations" aria-label="Help: File Operations" style="margin-right: 8px;">?</button>
+        <button id="btn-save" class="header-btn" aria-label="Save project (Ctrl+S)" title="Save project (Ctrl+S)">Save</button>
+        <button id="btn-load" class="header-btn" aria-label="Open project (Ctrl+O)" title="Open project (Ctrl+O)">Load</button>
+        <button id="btn-export" class="header-btn" aria-label="Export as ASCII text" title="Export as ASCII text">Export</button>
+        <button id="btn-import" class="header-btn" aria-label="Import ASCII maze file" title="Import ASCII maze file">Import</button>
+      </div>
+    </header>
+
+    <!-- Main Content Area -->
+    <div class="main-content">
+      <!-- Config Panel (Left) -->
+      <aside class="config-panel" id="config-panel">
+        <section class="config-section">
+          <h2 class="config-heading">Maze Type <button class="help-btn" data-help="maze-type" aria-label="Help: Maze Type">?</button></h2>
+          <div class="radio-group" role="radiogroup" aria-label="Maze type selection">
+            <label class="radio-label">
+              <input type="radio" name="maze-type" value="pacman" id="type-pacman">
+              Pac-Man
+            </label>
+            <label class="radio-label">
+              <input type="radio" name="maze-type" value="classic" id="type-classic">
+              Classic
+            </label>
+          </div>
+          <div class="sub-options" id="classic-sub-options" hidden>
+            <label class="radio-label indent">
+              <input type="radio" name="classic-subtype" value="perfect" id="subtype-perfect">
+              Perfect
+            </label>
+            <label class="radio-label indent">
+              <input type="radio" name="classic-subtype" value="imperfect" id="subtype-imperfect">
+              Imperfect
+            </label>
+          </div>
+        </section>
+
+        <section class="config-section">
+          <h2 class="config-heading">Dimensions <button class="help-btn" data-help="dimensions" aria-label="Help: Dimensions">?</button></h2>
+          <div class="input-row">
+            <label for="input-rows">Rows:</label>
+            <input type="number" id="input-rows" min="5" max="100" value="15" class="dim-input">
+          </div>
+          <div class="input-row">
+            <label for="input-cols">Cols:</label>
+            <input type="number" id="input-cols" min="5" max="100" value="15" class="dim-input">
+          </div>
+          <div class="validation-error" id="dim-error" hidden></div>
+        </section>
+
+        <section class="config-section">
+          <h2 class="config-heading">Seed <button class="help-btn" data-help="seed" aria-label="Help: Seed">?</button></h2>
+          <div class="input-row">
+            <input type="number" id="input-seed" class="seed-input" placeholder="Auto">
+            <button id="btn-copy-seed" class="small-btn" title="Copy seed">Copy</button>
+          </div>
+        </section>
+
+        <section class="config-section" id="section-density">
+          <h2 class="config-heading">Density <button class="help-btn" data-help="density" aria-label="Help: Density">?</button></h2>
+          <div class="slider-row">
+            <input type="range" id="slider-density" min="0" max="100" value="50" class="slider">
+            <span id="density-value" class="slider-value">0.5</span>
+          </div>
+        </section>
+
+        <section class="config-section" id="section-dead-ends" hidden>
+          <h2 class="config-heading">Dead Ends <button class="help-btn" data-help="dead-ends" aria-label="Help: Dead Ends">?</button></h2>
+          <div class="slider-row">
+            <input type="range" id="slider-dead-ends" min="0" max="100" value="30" class="slider">
+            <span id="dead-ends-value" class="slider-value">0.3</span>
+          </div>
+        </section>
+
+        <section class="config-section" id="section-symmetry" hidden>
+          <h2 class="config-heading">Symmetry <button class="help-btn" data-help="symmetry" aria-label="Help: Symmetry">?</button></h2>
+          <select id="select-symmetry" class="select-input">
+            <option value="none">None</option>
+            <option value="horizontal">Horizontal</option>
+            <option value="vertical">Vertical</option>
+            <option value="both">Both</option>
+          </select>
+          <label class="checkbox-label">
+            <input type="checkbox" id="check-wrapping">
+            Edge Wrapping
+          </label>
+        </section>
+
+        <section class="config-section config-actions">
+          <button id="btn-generate" class="primary-btn">Generate</button>
+          <button id="btn-regenerate" class="secondary-btn">Regenerate</button>
+        </section>
+      </aside>
+
+      <!-- Canvas Viewport (Center) -->
+      <main class="canvas-viewport" id="canvas-viewport">
+        <canvas id="maze-canvas" tabindex="0"></canvas>
+        <div class="coordinates" id="coordinates">--</div>
+        <canvas id="minimap-canvas" class="minimap" hidden></canvas>
+        <div class="empty-state" id="empty-state">
+          <p>Select a maze type and click <strong>Generate</strong> to begin.</p>
+        </div>
+      </main>
+    </div>
+
+    <!-- Toolbar -->
+    <div class="toolbar" role="toolbar" aria-label="Editing tools">
+      <div class="tool-group">
+        <button class="tool-btn active" data-tool="pencil" title="Pencil (1)">✏️</button>
+        <button class="tool-btn" data-tool="eraser" title="Eraser (2)">🧹</button>
+        <button class="tool-btn" data-tool="rectangle" title="Rectangle (3)">▭</button>
+        <button class="tool-btn" data-tool="line" title="Line (4)">╱</button>
+        <button class="tool-btn" data-tool="floodFill" title="Flood Fill (5)">🪣</button>
+      </div>
+      <div class="tool-separator"></div>
+      <div class="tool-group">
+        <button class="tool-btn toggle-btn" id="btn-paint-mode" title="Toggle Wall/Path (X)">
+          <span id="paint-mode-label">Wall</span>
+        </button>
+      </div>
+      <div class="tool-separator"></div>
+      <div class="tool-group" id="object-tools" hidden>
+        <button class="tool-btn obj-btn" data-obj="collectible" title="Collectible (.)">●</button>
+        <button class="tool-btn obj-btn" data-obj="powerup" title="Power-Up (B)">◆</button>
+        <button class="tool-btn obj-btn" data-obj="player-spawn" title="Player Spawn (K)">🚶</button>
+        <button class="tool-btn obj-btn" data-obj="enemy-spawn" title="Enemy Spawn (P)">👻</button>
+        <button class="tool-btn obj-btn" data-obj="portal" title="Portal (=)">🌀</button>
+        <button class="tool-btn obj-btn" data-obj="gate" title="Gate (D)">🚪</button>
+        <button class="tool-btn obj-btn" data-obj="pen" title="Pen Floor (space)">⬜</button>
+        <button class="tool-btn obj-btn" data-obj="clear-obj" title="Remove Object">❌</button>
+        <button class="help-btn" data-help="objects" aria-label="Help: Objects" style="margin-left:4px;">?</button>
+      </div>
+      <div class="tool-separator"></div>
+      <div class="tool-group">
+        <button class="tool-btn" id="btn-undo" title="Undo (Ctrl+Z)" disabled>Undo</button>
+        <button class="tool-btn" id="btn-redo" title="Redo (Ctrl+Shift+Z)" disabled>Redo</button>
+      </div>
+      <div class="tool-separator"></div>
+      <div class="tool-group">
+        <label class="toolbar-checkbox" title="Show solution path">
+          <input type="checkbox" id="check-path"> Path
+        </label>
+        <label class="toolbar-checkbox" title="Highlight unreachable">
+          <input type="checkbox" id="check-unreachable"> Unreachable
+        </label>
+        <label class="toolbar-checkbox" title="Show grid lines">
+          <input type="checkbox" id="check-grid" checked> Grid
+        </label>
+      </div>
+      <div class="tool-separator"></div>
+      <div class="tool-group">
+        <button class="help-btn" data-help="toolbar" aria-label="Help: Toolbar">?</button>
+      </div>
+    </div>
+
+    <!-- Status Bar -->
+    <footer class="status-bar" aria-live="polite" id="status-bar">
+      <span id="status-seed">Seed: --</span>
+      <span class="status-sep">|</span>
+      <span id="status-dims">--×--</span>
+      <span class="status-sep">|</span>
+      <span id="status-type">No maze</span>
+      <span id="status-warning" class="status-warning" hidden>⚠ No path found</span>
+    </footer>
+
+    <!-- Modal Container -->
+    <div id="modal-overlay" class="modal-overlay" hidden>
+      <div class="modal" role="dialog" aria-modal="true" id="modal-content"></div>
+    </div>
+  </div>
+
+  <script>
+(function() {
+'use strict';
+
+// ============================================================
+// algorithms/rng.js
+// ============================================================
+
+function mulberry32(seed) {
+  let s = seed | 0;
+  return function () {
+    s = (s + 0x6d2b79f5) | 0;
+    let t = Math.imul(s ^ (s >>> 15), 1 | s);
+    t = (t + Math.imul(t ^ (t >>> 7), 61 | t)) ^ t;
+    return ((t ^ (t >>> 14)) >>> 0) / 4294967296;
+  };
+}
+
+function randomSeed() {
+  const arr = new Uint32Array(1);
+  crypto.getRandomValues(arr);
+  return arr[0];
+}
+
+// ============================================================
+// algorithms/neighbors.js
+// ============================================================
+
+function getCardinalNeighbors(index, columns, rows, edgeWrapping) {
+  const row = Math.floor(index / columns);
+  const col = index % columns;
+  const neighbors = [];
+
+  // Up
+  if (row > 0) {
+    neighbors.push((row - 1) * columns + col);
+  } else if (edgeWrapping) {
+    neighbors.push((rows - 1) * columns + col);
+  }
+
+  // Down
+  if (row < rows - 1) {
+    neighbors.push((row + 1) * columns + col);
+  } else if (edgeWrapping) {
+    neighbors.push(col);
+  }
+
+  // Left
+  if (col > 0) {
+    neighbors.push(row * columns + (col - 1));
+  } else if (edgeWrapping) {
+    neighbors.push(row * columns + (columns - 1));
+  }
+
+  // Right
+  if (col < columns - 1) {
+    neighbors.push(row * columns + (col + 1));
+  } else if (edgeWrapping) {
+    neighbors.push(row * columns);
+  }
+
+  return neighbors;
+}
+
+function indexToRowCol(index, columns) {
+  return {
+    row: Math.floor(index / columns),
+    col: index % columns,
+  };
+}
+
+function rowColToIndex(row, col, columns) {
+  return row * columns + col;
+}
+
+// ============================================================
+// algorithms/pathfinder.js
+// ============================================================
+
+const WALL = 0;
+
+function findPath(cells, columns, rows, startIdx, endIdx, edgeWrapping) {
+  const size = rows * columns;
+  const visited = new Uint8Array(size);
+  const parent = new Int32Array(size).fill(-1);
+
+  visited[startIdx] = 1;
+  const queue = [startIdx];
+  let head = 0;
+
+  while (head < queue.length) {
+    const current = queue[head++];
+
+    if (current === endIdx) {
+      return _reconstructPath(parent, startIdx, endIdx);
+    }
+
+    const neighbors = getCardinalNeighbors(current, columns, rows, edgeWrapping);
+    for (let i = 0; i < neighbors.length; i++) {
+      const neighbor = neighbors[i];
+      if (!visited[neighbor] && cells[neighbor] !== WALL) {
+        visited[neighbor] = 1;
+        parent[neighbor] = current;
+        queue.push(neighbor);
+      }
+    }
+  }
+
+  return null;
+}
+
+function _reconstructPath(parent, startIdx, endIdx) {
+  const path = [];
+  let current = endIdx;
+  while (current !== startIdx) {
+    path.push(current);
+    current = parent[current];
+    if (current === -1) return null;
+  }
+  path.push(startIdx);
+  path.reverse();
+  return path;
+}
+
+function floodFill(cells, columns, rows, startIdx, edgeWrapping) {
+  const size = rows * columns;
+  const connected = new Uint8Array(size);
+  let count = 0;
+
+  if (cells[startIdx] === WALL) {
+    return { connected, count: 0 };
+  }
+
+  const stack = [startIdx];
+  connected[startIdx] = 1;
+  count = 1;
+
+  while (stack.length > 0) {
+    const current = stack.pop();
+    const neighbors = getCardinalNeighbors(current, columns, rows, edgeWrapping);
+
+    for (let i = 0; i < neighbors.length; i++) {
+      const neighbor = neighbors[i];
+      if (!connected[neighbor] && cells[neighbor] !== WALL) {
+        connected[neighbor] = 1;
+        count++;
+        stack.push(neighbor);
+      }
+    }
+  }
+
+  return { connected, count };
+}
+
+function findUnreachable(cells, rows, columns, anchorIdx, edgeWrapping) {
+  const { connected } = floodFill(cells, columns, rows, anchorIdx, edgeWrapping);
+  const unreachable = new Set();
+  const size = rows * columns;
+
+  for (let i = 0; i < size; i++) {
+    if (cells[i] !== WALL && !connected[i]) {
+      unreachable.add(i);
+    }
+  }
+
+  return unreachable;
+}
+
+function isCycleFree(cells, rows, columns, edgeWrapping) {
+  const size = rows * columns;
+  let nodeCount = 0;
+  let edgeCount = 0;
+
+  for (let i = 0; i < size; i++) {
+    if (cells[i] === WALL) continue;
+    nodeCount++;
+
+    const row = Math.floor(i / columns);
+    const col = i % columns;
+
+    // Right neighbor
+    if (col < columns - 1) {
+      if (cells[i + 1] !== WALL) edgeCount++;
+    } else if (edgeWrapping) {
+      if (cells[row * columns] !== WALL) edgeCount++;
+    }
+
+    // Down neighbor
+    if (row < rows - 1) {
+      if (cells[i + columns] !== WALL) edgeCount++;
+    } else if (edgeWrapping) {
+      if (cells[col] !== WALL) edgeCount++;
+    }
+  }
+
+  return edgeCount === nodeCount - 1;
+}
+
+function countPathwayCells(cells) {
+  let count = 0;
+  for (let i = 0; i < cells.length; i++) {
+    if (cells[i] !== WALL) count++;
+  }
+  return count;
+}
+
+function findCellByValue(cells, value) {
+  for (let i = 0; i < cells.length; i++) {
+    if (cells[i] === value) return i;
+  }
+  return -1;
+}
+
+// ============================================================
+// algorithms/validator.js
+// ============================================================
+
+const PATHWAY = 1;
+const START = 2;
+const END = 3;
+
+function validateClassicPerfect(cells, rows, columns) {
+  const errors = [];
+  const edgeWrapping = false;
+
+  const startIdx = findCellByValue(cells, START);
+  const endIdx = findCellByValue(cells, END);
+
+  if (startIdx === -1) errors.push('Missing Start_Point');
+  if (endIdx === -1) errors.push('Missing End_Point');
+  if (errors.length > 0) return { valid: false, errors };
+
+  const { count } = floodFill(cells, columns, rows, startIdx, edgeWrapping);
+  const totalPathway = countPathwayCells(cells);
+  if (count !== totalPathway) {
+    errors.push(`Disconnected regions: ${count} reachable of ${totalPathway} pathway cells`);
+  }
+
+  if (!isCycleFree(cells, rows, columns, edgeWrapping)) {
+    errors.push('Maze contains cycles (not a perfect maze)');
+  }
+
+  const path = findPath(cells, columns, rows, startIdx, endIdx, edgeWrapping);
+  if (!path) {
+    errors.push('No path from Start to End');
+  }
+
+  return { valid: errors.length === 0, errors };
+}
+
+function validateClassicImperfect(cells, rows, columns) {
+  const errors = [];
+  const edgeWrapping = false;
+
+  const startIdx = findCellByValue(cells, START);
+  const endIdx = findCellByValue(cells, END);
+
+  if (startIdx === -1) errors.push('Missing Start_Point');
+  if (endIdx === -1) errors.push('Missing End_Point');
+  if (errors.length > 0) return { valid: false, errors };
+
+  const { count } = floodFill(cells, columns, rows, startIdx, edgeWrapping);
+  const totalPathway = countPathwayCells(cells);
+  if (count !== totalPathway) {
+    errors.push(`Disconnected regions: ${count} reachable of ${totalPathway} pathway cells`);
+  }
+
+  const path = findPath(cells, columns, rows, startIdx, endIdx, edgeWrapping);
+  if (!path) {
+    errors.push('No path from Start to End');
+  }
+
+  return { valid: errors.length === 0, errors };
+}
+
+function validatePacMan(cells, rows, columns, config) {
+  const errors = [];
+  const edgeWrapping = config.edgeWrapping || false;
+  const size = rows * columns;
+
+  let firstPathway = -1;
+  for (let i = 0; i < size; i++) {
+    if (cells[i] !== WALL) {
+      firstPathway = i;
+      break;
+    }
+  }
+
+  if (firstPathway === -1) {
+    errors.push('No pathway cells found');
+    return { valid: false, errors };
+  }
+
+  const { count } = floodFill(cells, columns, rows, firstPathway, edgeWrapping);
+  const totalPathway = countPathwayCells(cells);
+  if (count !== totalPathway) {
+    errors.push(`Disconnected regions: ${count} reachable of ${totalPathway} pathway cells`);
+  }
+
+  for (let i = 0; i < size; i++) {
+    if (cells[i] === WALL) continue;
+    const neighbors = getCardinalNeighbors(i, columns, rows, edgeWrapping);
+    let pathwayNeighborCount = 0;
+    for (const n of neighbors) {
+      if (cells[n] !== WALL) pathwayNeighborCount++;
+    }
+    if (pathwayNeighborCount < 2) {
+      const row = Math.floor(i / columns);
+      const col = i % columns;
+      errors.push(`Dead end at (${row}, ${col})`);
+      if (errors.length > 10) return { valid: false, errors }; // early exit
+    }
+  }
+
+  for (let r = 0; r < rows - 1; r++) {
+    for (let c = 0; c < columns - 1; c++) {
+      const tl = r * columns + c;
+      const tr = tl + 1;
+      const bl = (r + 1) * columns + c;
+      const br = bl + 1;
+      if (cells[tl] !== WALL && cells[tr] !== WALL &&
+          cells[bl] !== WALL && cells[br] !== WALL) {
+        errors.push(`2x2 room at (${r}, ${c})`);
+      }
+    }
+  }
+
+  if (edgeWrapping) {
+    for (let r = 0; r < rows - 1; r++) {
+      const tl = r * columns + (columns - 1);
+      const tr = r * columns;
+      const bl = (r + 1) * columns + (columns - 1);
+      const br = (r + 1) * columns;
+      if (cells[tl] !== WALL && cells[tr] !== WALL &&
+          cells[bl] !== WALL && cells[br] !== WALL) {
+        errors.push(`2x2 room at wrap boundary row ${r}`);
+      }
+    }
+    for (let c = 0; c < columns - 1; c++) {
+      const tl = (rows - 1) * columns + c;
+      const tr = tl + 1;
+      const bl = c;
+      const br = c + 1;
+      if (cells[tl] !== WALL && cells[tr] !== WALL &&
+          cells[bl] !== WALL && cells[br] !== WALL) {
+        errors.push(`2x2 room at wrap boundary col ${c}`);
+      }
+    }
+  }
+
+  const coverage = totalPathway / size;
+  if (coverage < 0.2) {
+    errors.push(`Pathway coverage ${(coverage * 100).toFixed(1)}% is below 20% minimum`);
+  }
+
+  return { valid: errors.length === 0, errors };
+}
+
+function checkConfigFeasibility(rows, columns, config) {
+  if (config.type === 'pacman') {
+    if (config.symmetry === 'both') {
+      if (rows < 7 || columns < 7) {
+        return {
+          feasible: false,
+          reason: 'Both-axis symmetry requires at least 7×7 grid to satisfy braid constraints.',
+        };
+      }
+    }
+    if (config.symmetry === 'horizontal' && columns < 7) {
+      return {
+        feasible: false,
+        reason: 'Horizontal symmetry requires at least 7 columns.',
+      };
+    }
+    if (config.symmetry === 'vertical' && rows < 7) {
+      return {
+        feasible: false,
+        reason: 'Vertical symmetry requires at least 7 rows.',
+      };
+    }
+  }
+
+  return { feasible: true, reason: null };
+}
+
+function validateNoEnclosedRegions(cells, rows, columns, edgeWrapping) {
+  const errors = [];
+  const size = rows * columns;
+
+  let firstPathway = -1;
+  for (let i = 0; i < size; i++) {
+    if (cells[i] !== WALL) {
+      firstPathway = i;
+      break;
+    }
+  }
+
+  if (firstPathway === -1) return { valid: true, errors };
+
+  const { connected, count } = floodFill(cells, columns, rows, firstPathway, edgeWrapping);
+  const totalPathway = countPathwayCells(cells);
+
+  if (count !== totalPathway) {
+    errors.push(`${totalPathway - count} pathway cells are enclosed/unreachable`);
+  }
+
+  return { valid: errors.length === 0, errors };
+}
+
+// ============================================================
+// algorithms/classic-generator.js
+// ============================================================
+
+function generateClassicPerfect(rows, columns, config, rng) {
+  const cells = new Uint8Array(rows * columns);
+  const density = config.density ?? 0.5;
+
+  const carvableRows = [];
+  const carvableCols = [];
+  for (let r = 1; r < rows - 1; r += 2) carvableRows.push(r);
+  for (let c = 1; c < columns - 1; c += 2) carvableCols.push(c);
+
+  if (carvableRows.length === 0 || carvableCols.length === 0) {
+    cells[rowColToIndex(1, 1, columns)] = PATHWAY;
+    return cells;
+  }
+
+  const visited = new Uint8Array(carvableRows.length * carvableCols.length);
+
+  function carvingToIndex(cr, cc) {
+    return rowColToIndex(carvableRows[cr], carvableCols[cc], columns);
+  }
+
+  function carvingFlatIdx(cr, cc) {
+    return cr * carvableCols.length + cc;
+  }
+
+  const directions = [[-1, 0], [1, 0], [0, -1], [0, 1]];
+
+  const startCR = Math.floor(rng() * carvableRows.length);
+  const startCC = Math.floor(rng() * carvableCols.length);
+
+  cells[carvingToIndex(startCR, startCC)] = PATHWAY;
+  visited[carvingFlatIdx(startCR, startCC)] = 1;
+
+  const stack = [{ cr: startCR, cc: startCC, lastDir: -1 }];
+
+  while (stack.length > 0) {
+    const current = stack[stack.length - 1];
+    const { cr, cc, lastDir } = current;
+
+    const unvisited = [];
+    for (let d = 0; d < 4; d++) {
+      const nr = cr + directions[d][0];
+      const nc = cc + directions[d][1];
+      if (nr >= 0 && nr < carvableRows.length && nc >= 0 && nc < carvableCols.length) {
+        if (!visited[carvingFlatIdx(nr, nc)]) {
+          unvisited.push(d);
+        }
+      }
+    }
+
+    if (unvisited.length === 0) {
+      stack.pop();
+      continue;
+    }
+
+    let chosenDir;
+    if (lastDir >= 0 && unvisited.includes(lastDir) && rng() > density) {
+      chosenDir = lastDir;
+    } else {
+      chosenDir = unvisited[Math.floor(rng() * unvisited.length)];
+    }
+
+    const nr = cr + directions[chosenDir][0];
+    const nc = cc + directions[chosenDir][1];
+
+    const wallRow = (carvableRows[cr] + carvableRows[nr]) / 2;
+    const wallCol = (carvableCols[cc] + carvableCols[nc]) / 2;
+    cells[rowColToIndex(wallRow, wallCol, columns)] = PATHWAY;
+
+    cells[carvingToIndex(nr, nc)] = PATHWAY;
+    visited[carvingFlatIdx(nr, nc)] = 1;
+
+    stack.push({ cr: nr, cc: nc, lastDir: chosenDir });
+  }
+
+  _placeStartEnd(cells, rows, columns, rng);
+
+  return cells;
+}
+
+function _placeStartEnd(cells, rows, columns, rng) {
+  const axis = rng() < 0.5 ? 0 : 1;
+
+  if (axis === 0) {
+    const topPathways = [];
+    for (let c = 0; c < columns; c++) {
+      if (cells[rowColToIndex(1, c, columns)] === PATHWAY) {
+        topPathways.push(c);
+      }
+    }
+    const bottomPathways = [];
+    for (let c = 0; c < columns; c++) {
+      if (cells[rowColToIndex(rows - 2, c, columns)] === PATHWAY) {
+        bottomPathways.push(c);
+      }
+    }
+
+    if (topPathways.length > 0 && bottomPathways.length > 0) {
+      const startCol = topPathways[Math.floor(rng() * topPathways.length)];
+      const endCol = bottomPathways[Math.floor(rng() * bottomPathways.length)];
+
+      const startIdx = rowColToIndex(0, startCol, columns);
+      cells[startIdx] = START;
+
+      const endIdx = rowColToIndex(rows - 1, endCol, columns);
+      cells[endIdx] = END;
+    } else {
+      _placeFallbackStartEnd(cells, rows, columns);
+    }
+  } else {
+    const leftPathways = [];
+    for (let r = 0; r < rows; r++) {
+      if (cells[rowColToIndex(r, 1, columns)] === PATHWAY) {
+        leftPathways.push(r);
+      }
+    }
+    const rightPathways = [];
+    for (let r = 0; r < rows; r++) {
+      if (cells[rowColToIndex(r, columns - 2, columns)] === PATHWAY) {
+        rightPathways.push(r);
+      }
+    }
+
+    if (leftPathways.length > 0 && rightPathways.length > 0) {
+      const startRow = leftPathways[Math.floor(rng() * leftPathways.length)];
+      const endRow = rightPathways[Math.floor(rng() * rightPathways.length)];
+
+      const startIdx = rowColToIndex(startRow, 0, columns);
+      cells[startIdx] = START;
+
+      const endIdx = rowColToIndex(endRow, columns - 1, columns);
+      cells[endIdx] = END;
+    } else {
+      _placeFallbackStartEnd(cells, rows, columns);
+    }
+  }
+}
+
+function _placeFallbackStartEnd(cells, rows, columns) {
+  for (let i = 0; i < cells.length; i++) {
+    if (cells[i] === PATHWAY) {
+      cells[i] = START;
+      break;
+    }
+  }
+  for (let i = cells.length - 1; i >= 0; i--) {
+    if (cells[i] === PATHWAY) {
+      cells[i] = END;
+      break;
+    }
+  }
+}
+
+function generateClassicImperfect(rows, columns, config, rng) {
+  const cells = generateClassicPerfect(rows, columns, { density: config.density ?? 0.5 }, rng);
+
+  const imperfectDensity = config.density ?? 0.5;
+  const deadEndFreq = config.deadEndFrequency ?? 0.3;
+
+  const eligible = [];
+  for (let r = 1; r < rows - 1; r++) {
+    for (let c = 1; c < columns - 1; c++) {
+      const idx = rowColToIndex(r, c, columns);
+      if (cells[idx] !== WALL) continue;
+
+      const up = r > 0 ? cells[rowColToIndex(r - 1, c, columns)] : WALL;
+      const down = r < rows - 1 ? cells[rowColToIndex(r + 1, c, columns)] : WALL;
+      const left = c > 0 ? cells[rowColToIndex(r, c - 1, columns)] : WALL;
+      const right = c < columns - 1 ? cells[rowColToIndex(r, c + 1, columns)] : WALL;
+
+      if ((up !== WALL && down !== WALL) || (left !== WALL && right !== WALL)) {
+        eligible.push(idx);
+      }
+    }
+  }
+
+  for (let i = eligible.length - 1; i > 0; i--) {
+    const j = Math.floor(rng() * (i + 1));
+    [eligible[i], eligible[j]] = [eligible[j], eligible[i]];
+  }
+
+  const targetRemovals = Math.floor(imperfectDensity * eligible.length);
+  for (let i = 0; i < targetRemovals && i < eligible.length; i++) {
+    cells[eligible[i]] = PATHWAY;
+  }
+
+  if (deadEndFreq < 1.0) {
+    _removeDeadEnds(cells, rows, columns, deadEndFreq, rng);
+  }
+
+  return cells;
+}
+
+function _removeDeadEnds(cells, rows, columns, deadEndFreq, rng) {
+  const edgeWrapping = false;
+  let iterations = 0;
+  const maxIterations = 1000;
+
+  while (iterations < maxIterations) {
+    iterations++;
+    const deadEnds = [];
+
+    for (let i = 0; i < cells.length; i++) {
+      if (cells[i] === WALL) continue;
+      if (cells[i] === START || cells[i] === END) continue;
+
+      const neighbors = getCardinalNeighbors(i, columns, rows, edgeWrapping);
+      let pathwayCount = 0;
+      for (const n of neighbors) {
+        if (cells[n] !== WALL) pathwayCount++;
+      }
+      if (pathwayCount === 1) deadEnds.push(i);
+    }
+
+    if (deadEnds.length === 0) break;
+
+    const toRemove = Math.floor(deadEnds.length * (1 - deadEndFreq));
+    if (toRemove === 0) break;
+
+    for (let i = deadEnds.length - 1; i > 0; i--) {
+      const j = Math.floor(rng() * (i + 1));
+      [deadEnds[i], deadEnds[j]] = [deadEnds[j], deadEnds[i]];
+    }
+
+    let removed = 0;
+    for (const deadEnd of deadEnds) {
+      if (removed >= toRemove) break;
+
+      const neighbors = getCardinalNeighbors(deadEnd, columns, rows, edgeWrapping);
+      for (const n of neighbors) {
+        if (cells[n] === WALL) {
+          const { row, col } = indexToRowCol(n, columns);
+          if (row > 0 && row < rows - 1 && col > 0 && col < columns - 1) {
+            cells[n] = PATHWAY;
+            removed++;
+            break;
+          }
+        }
+      }
+    }
+
+    if (removed === 0) break;
+  }
+}
+
+function generateClassicMaze(rows, columns, config, seed) {
+  const maxAttempts = 10;
+
+  for (let attempt = 0; attempt < maxAttempts; attempt++) {
+    const currentSeed = seed + attempt;
+    const rng = mulberry32(currentSeed);
+
+    let cells;
+    if (config.subType === 'perfect') {
+      cells = generateClassicPerfect(rows, columns, config, rng);
+    } else {
+      cells = generateClassicImperfect(rows, columns, config, rng);
+    }
+
+    const validation = config.subType === 'perfect'
+      ? validateClassicPerfect(cells, rows, columns)
+      : validateClassicImperfect(cells, rows, columns);
+
+    if (validation.valid) {
+      return { cells, seed: currentSeed };
+    }
+  }
+
+  return { cells: null, seed, error: 'Failed to generate valid maze after 10 attempts' };
+}
+
+// ============================================================
+// algorithms/pacman-generator.js
+// ============================================================
+
+class UnionFind {
+  constructor(size) {
+    this.parent = new Int32Array(size);
+    this.rank = new Uint8Array(size);
+    for (let i = 0; i < size; i++) this.parent[i] = i;
+  }
+
+  find(x) {
+    while (this.parent[x] !== x) {
+      this.parent[x] = this.parent[this.parent[x]];
+      x = this.parent[x];
+    }
+    return x;
+  }
+
+  union(a, b) {
+    const ra = this.find(a);
+    const rb = this.find(b);
+    if (ra === rb) return false;
+    if (this.rank[ra] < this.rank[rb]) {
+      this.parent[ra] = rb;
+    } else if (this.rank[ra] > this.rank[rb]) {
+      this.parent[rb] = ra;
+    } else {
+      this.parent[rb] = ra;
+      this.rank[ra]++;
+    }
+    return true;
+  }
+
+  connected(a, b) {
+    return this.find(a) === this.find(b);
+  }
+}
+
+function generatePacManMaze(rows, columns, config, rng) {
+  const symmetry = config.symmetry || 'none';
+  const edgeWrapping = config.edgeWrapping || false;
+
+  let cells;
+
+  if (symmetry === 'none') {
+    cells = _generateBraidFull(rows, columns, edgeWrapping, rng);
+  } else {
+    cells = _generateBraidSymmetric(rows, columns, symmetry, edgeWrapping, rng);
+  }
+
+  if (edgeWrapping) {
+    _applyEdgeWrapping(cells, rows, columns, rng);
+  }
+
+  _eliminateDeadEnds(cells, rows, columns, edgeWrapping, rng);
+  _repair2x2Rooms(cells, rows, columns, edgeWrapping);
+  // Run elimination again after repair may have created new dead ends
+  _eliminateDeadEnds(cells, rows, columns, edgeWrapping, rng);
+
+  return cells;
+}
+
+function _generateBraidFull(rows, columns, edgeWrapping, rng) {
+  const size = rows * columns;
+  const cells = new Uint8Array(size);
+
+  const nodes = [];
+  const nodeIndex = new Int32Array(size).fill(-1);
+
+  for (let r = 1; r < rows - 1; r += 2) {
+    for (let c = 1; c < columns - 1; c += 2) {
+      const idx = rowColToIndex(r, c, columns);
+      nodeIndex[idx] = nodes.length;
+      nodes.push(idx);
+      cells[idx] = PATHWAY;
+    }
+  }
+
+  const edges = [];
+  for (let i = 0; i < nodes.length; i++) {
+    const { row, col } = indexToRowCol(nodes[i], columns);
+
+    if (col + 2 < columns - 1) {
+      const rightNode = nodeIndex[rowColToIndex(row, col + 2, columns)];
+      if (rightNode >= 0) {
+        edges.push({ a: i, b: rightNode, wall: rowColToIndex(row, col + 1, columns) });
+      }
+    }
+
+    if (row + 2 < rows - 1) {
+      const downNode = nodeIndex[rowColToIndex(row + 2, col, columns)];
+      if (downNode >= 0) {
+        edges.push({ a: i, b: downNode, wall: rowColToIndex(row + 1, col, columns) });
+      }
+    }
+  }
+
+  for (let i = edges.length - 1; i > 0; i--) {
+    const j = Math.floor(rng() * (i + 1));
+    [edges[i], edges[j]] = [edges[j], edges[i]];
+  }
+
+  const uf = new UnionFind(nodes.length);
+  for (const edge of edges) {
+    if (uf.union(edge.a, edge.b)) {
+      cells[edge.wall] = PATHWAY;
+    }
+  }
+
+  for (const edge of edges) {
+    if (cells[edge.wall] === WALL) {
+      const aIdx = nodes[edge.a];
+      const bIdx = nodes[edge.b];
+      const aNeighbors = _countPathwayNeighbors(cells, aIdx, columns, rows, edgeWrapping);
+      const bNeighbors = _countPathwayNeighbors(cells, bIdx, columns, rows, edgeWrapping);
+
+      if (aNeighbors < 2 || bNeighbors < 2) {
+        cells[edge.wall] = PATHWAY;
+      }
+    }
+  }
+
+  return cells;
+}
+
+function _generateBraidSymmetric(rows, columns, symmetry, edgeWrapping, rng) {
+  let genRows = rows;
+  let genCols = columns;
+
+  if (symmetry === 'horizontal' || symmetry === 'both') {
+    genCols = Math.ceil(columns / 2);
+  }
+  if (symmetry === 'vertical' || symmetry === 'both') {
+    genRows = Math.ceil(rows / 2);
+  }
+
+  const partial = _generateBraidFull(genRows, genCols, false, rng);
+
+  const size = rows * columns;
+  const cells = new Uint8Array(size);
+
+  for (let r = 0; r < rows; r++) {
+    for (let c = 0; c < columns; c++) {
+      let srcR = r;
+      let srcC = c;
+
+      if (symmetry === 'horizontal' || symmetry === 'both') {
+        if (c >= genCols) {
+          srcC = columns - 1 - c;
+          if (srcC >= genCols) srcC = genCols - 1;
+        }
+      }
+      if (symmetry === 'vertical' || symmetry === 'both') {
+        if (r >= genRows) {
+          srcR = rows - 1 - r;
+          if (srcR >= genRows) srcR = genRows - 1;
+        }
+      }
+
+      if (srcR < genRows && srcC < genCols) {
+        cells[rowColToIndex(r, c, columns)] = partial[rowColToIndex(srcR, srcC, genCols)];
+      }
+    }
+  }
+
+  return cells;
+}
+
+function _countPathwayNeighbors(cells, index, columns, rows, edgeWrapping) {
+  const neighbors = getCardinalNeighbors(index, columns, rows, edgeWrapping);
+  let count = 0;
+  for (const n of neighbors) {
+    if (cells[n] !== WALL) count++;
+  }
+  return count;
+}
+
+function _eliminateDeadEnds(cells, rows, columns, edgeWrapping, rng) {
+  const size = rows * columns;
+  let changed = true;
+  let iterations = 0;
+  const maxIterations = size;
+
+  while (changed && iterations < maxIterations) {
+    changed = false;
+    iterations++;
+
+    for (let i = 0; i < size; i++) {
+      if (cells[i] === WALL) continue;
+
+      const neighbors = getCardinalNeighbors(i, columns, rows, edgeWrapping);
+      let pathwayCount = 0;
+      const wallNeighbors = [];
+
+      for (const n of neighbors) {
+        if (cells[n] !== WALL) {
+          pathwayCount++;
+        } else {
+          wallNeighbors.push(n);
+        }
+      }
+
+      if (pathwayCount < 2 && wallNeighbors.length > 0) {
+        let opened = false;
+        for (let j = wallNeighbors.length - 1; j > 0; j--) {
+          const k = Math.floor(rng() * (j + 1));
+          [wallNeighbors[j], wallNeighbors[k]] = [wallNeighbors[k], wallNeighbors[j]];
+        }
+
+        for (const wallN of wallNeighbors) {
+          const wallNeighborsOfWall = getCardinalNeighbors(wallN, columns, rows, edgeWrapping);
+          let hasOtherPathway = false;
+          for (const nn of wallNeighborsOfWall) {
+            if (nn !== i && cells[nn] !== WALL) {
+              hasOtherPathway = true;
+              break;
+            }
+          }
+
+          if (hasOtherPathway) {
+            cells[wallN] = PATHWAY;
+            opened = true;
+            changed = true;
+            break;
+          }
+        }
+
+        if (!opened && wallNeighbors.length > 0) {
+          // Only open interior walls as fallback (not border cells)
+          for (const wallN of wallNeighbors) {
+            const wr = Math.floor(wallN / columns);
+            const wc = wallN % columns;
+            if (wr > 0 && wr < rows - 1 && wc > 0 && wc < columns - 1) {
+              cells[wallN] = PATHWAY;
+              changed = true;
+              break;
+            }
+          }
+        }
+      }
+    }
+  }
+}
+
+function _applyEdgeWrapping(cells, rows, columns, rng) {
+  for (let r = 1; r < rows - 1; r += 2) {
+    const leftIdx = rowColToIndex(r, 0, columns);
+    const rightIdx = rowColToIndex(r, columns - 1, columns);
+    const leftInner = rowColToIndex(r, 1, columns);
+    const rightInner = rowColToIndex(r, columns - 2, columns);
+
+    if (cells[leftInner] !== WALL && cells[rightInner] !== WALL) {
+      if (rng() < 0.3) {
+        cells[leftIdx] = PATHWAY;
+        cells[rightIdx] = PATHWAY;
+      }
+    }
+  }
+
+  for (let c = 1; c < columns - 1; c += 2) {
+    const topIdx = rowColToIndex(0, c, columns);
+    const bottomIdx = rowColToIndex(rows - 1, c, columns);
+    const topInner = rowColToIndex(1, c, columns);
+    const bottomInner = rowColToIndex(rows - 2, c, columns);
+
+    if (cells[topInner] !== WALL && cells[bottomInner] !== WALL) {
+      if (rng() < 0.3) {
+        cells[topIdx] = PATHWAY;
+        cells[bottomIdx] = PATHWAY;
+      }
+    }
+  }
+}
+
+function _repair2x2Rooms(cells, rows, columns, edgeWrapping) {
+  let repaired = true;
+  let iterations = 0;
+
+  while (repaired && iterations < 100) {
+    repaired = false;
+    iterations++;
+
+    for (let r = 0; r < rows - 1; r++) {
+      for (let c = 0; c < columns - 1; c++) {
+        const tl = rowColToIndex(r, c, columns);
+        const tr = rowColToIndex(r, c + 1, columns);
+        const bl = rowColToIndex(r + 1, c, columns);
+        const br = rowColToIndex(r + 1, c + 1, columns);
+
+        if (cells[tl] !== WALL && cells[tr] !== WALL &&
+            cells[bl] !== WALL && cells[br] !== WALL) {
+          const candidates = [tl, tr, bl, br];
+          let bestIdx = -1;
+          let bestCount = -1;
+
+          for (const idx of candidates) {
+            const count = _countPathwayNeighbors(cells, idx, columns, rows, edgeWrapping);
+            if (count > bestCount) {
+              bestCount = count;
+              bestIdx = idx;
+            }
+          }
+
+          if (bestIdx >= 0 && bestCount >= 3) {
+            cells[bestIdx] = WALL;
+            repaired = true;
+          }
+        }
+      }
+    }
+  }
+}
+
+function generatePacMan(rows, columns, config, seed) {
+  const maxAttempts = 50;
+
+  for (let attempt = 0; attempt < maxAttempts; attempt++) {
+    const currentSeed = seed + attempt;
+    const rng = mulberry32(currentSeed);
+
+    const cells = generatePacManMaze(rows, columns, config, rng);
+
+    const validation = validatePacMan(cells, rows, columns, config);
+    if (validation.valid) {
+      return { cells, seed: currentSeed };
+    }
+  }
+
+  return { cells: null, seed, error: 'Failed to generate valid Pac-Man maze after multiple attempts. Try different dimensions or settings.' };
+}
+
+// ============================================================
+// state/store.js
+// ============================================================
+
+class StateStore {
+  constructor() {
+    this._listeners = new Map();
+
+    this.maze = null;
+
+    this.editor = {
+      activeTool: 'pencil',
+      paintMode: 'wall',
+      isDirty: false,
+      isPathValid: null,
+      showPathOverlay: false,
+      showUnreachable: false,
+      showGridLines: true,
+    };
+
+    this.view = {
+      zoom: 1,
+      panX: 0,
+      panY: 0,
+      cellSize: 16,
+      cursorCell: null,
+      showMinimap: false,
+    };
+  }
+
+  subscribe(event, callback) {
+    if (!this._listeners.has(event)) {
+      this._listeners.set(event, []);
+    }
+    this._listeners.get(event).push(callback);
+  }
+
+  emit(event, data) {
+    const handlers = this._listeners.get(event);
+    if (handlers) {
+      for (const handler of handlers) {
+        handler(data);
+      }
+    }
+  }
+
+  setMazeState(maze) {
+    this.maze = maze;
+    this.view.showMinimap = maze.rows > 30 || maze.columns > 30;
+    this.emit('maze-replaced', maze);
+  }
+
+  updateCells(changes) {
+    if (!this.maze) return;
+    for (const change of changes) {
+      this.maze.cells[change.index] = change.newValue;
+    }
+    this.maze.modifiedAt = new Date().toISOString();
+    this.emit('cells-changed', changes);
+  }
+
+  revertCells(changes) {
+    if (!this.maze) return;
+    for (const change of changes) {
+      this.maze.cells[change.index] = change.oldValue;
+    }
+    this.maze.modifiedAt = new Date().toISOString();
+    this.emit('cells-changed', changes);
+  }
+
+  setEditorTool(tool) {
+    this.editor.activeTool = tool;
+    this.emit('tool-changed', tool);
+  }
+
+  setPaintMode(mode) {
+    this.editor.paintMode = mode;
+    this.emit('paint-mode-changed', mode);
+  }
+
+  togglePaintMode() {
+    this.setPaintMode(this.editor.paintMode === 'wall' ? 'pathway' : 'wall');
+  }
+
+  setDirty(dirty) {
+    this.editor.isDirty = dirty;
+    this.emit('dirty-changed', dirty);
+  }
+
+  setPathValid(valid) {
+    this.editor.isPathValid = valid;
+    this.emit('path-status-changed', valid);
+  }
+
+  togglePathOverlay() {
+    this.editor.showPathOverlay = !this.editor.showPathOverlay;
+    this.emit('overlay-changed', { type: 'path', visible: this.editor.showPathOverlay });
+  }
+
+  toggleUnreachable() {
+    this.editor.showUnreachable = !this.editor.showUnreachable;
+    this.emit('overlay-changed', { type: 'unreachable', visible: this.editor.showUnreachable });
+  }
+
+  toggleGridLines() {
+    this.editor.showGridLines = !this.editor.showGridLines;
+    this.emit('grid-lines-changed', this.editor.showGridLines);
+  }
+
+  setViewTransform(zoom, panX, panY) {
+    this.view.zoom = zoom;
+    this.view.panX = panX;
+    this.view.panY = panY;
+    this.view.cellSize = Math.max(8, Math.round(16 * zoom));
+    this.emit('view-changed', this.view);
+  }
+
+  setCursorCell(cell) {
+    this.view.cursorCell = cell;
+    this.emit('cursor-changed', cell);
+  }
+}
+
+// ============================================================
+// state/history.js
+// ============================================================
+
+const MAX_UNDO_STACK = 1000;
+const MAX_SERIALIZABLE = 200;
+
+class HistoryManager {
+  constructor() {
+    this._undoStack = [];
+    this._redoStack = [];
+  }
+
+  push(operation) {
+    this._undoStack.push(operation);
+    this._redoStack = [];
+    if (this._undoStack.length > MAX_UNDO_STACK) {
+      this._undoStack.shift();
+    }
+  }
+
+  undo() {
+    if (this._undoStack.length === 0) return null;
+    const operation = this._undoStack.pop();
+    this._redoStack.push(operation);
+    return operation;
+  }
+
+  redo() {
+    if (this._redoStack.length === 0) return null;
+    const operation = this._redoStack.pop();
+    this._undoStack.push(operation);
+    return operation;
+  }
+
+  canUndo() {
+    return this._undoStack.length > 0;
+  }
+
+  canRedo() {
+    return this._redoStack.length > 0;
+  }
+
+  clear() {
+    this._undoStack = [];
+    this._redoStack = [];
+  }
+
+  getStack() {
+    return {
+      undo: this._undoStack,
+      redo: this._redoStack,
+    };
+  }
+
+  setStack(undo, redo) {
+    this._undoStack = undo.slice(-MAX_UNDO_STACK);
+    this._redoStack = redo.slice(-MAX_UNDO_STACK);
+  }
+
+  getSerializableStack(maxDepth) {
+    maxDepth = maxDepth || MAX_SERIALIZABLE;
+    return {
+      undo: this._undoStack.slice(-maxDepth),
+      redo: this._redoStack.slice(-maxDepth),
+    };
+  }
+
+  get undoSize() {
+    return this._undoStack.length;
+  }
+
+  get redoSize() {
+    return this._redoStack.length;
+  }
+}
+
+// ============================================================
+// io/file-access.js
+// ============================================================
+
+async function saveFile(content, suggestedName, types) {
+  try {
+    if ('showSaveFilePicker' in window) {
+      const handle = await window.showSaveFilePicker({
+        suggestedName,
+        types,
+      });
+      const writable = await handle.createWritable();
+      await writable.write(content);
+      await writable.close();
+      return { success: true };
+    } else {
+      _downloadBlob(content, suggestedName);
+      return { success: true };
+    }
+  } catch (err) {
+    if (err.name === 'AbortError') {
+      return { success: false, error: 'cancelled' };
+    }
+    return { success: false, error: err.message || 'Unknown file save error' };
+  }
+}
+
+async function openFile(types) {
+  try {
+    if ('showOpenFilePicker' in window) {
+      const [handle] = await window.showOpenFilePicker({ types });
+      const file = await handle.getFile();
+      const content = await file.text();
+      return { success: true, content, name: file.name };
+    } else {
+      return await _uploadViaInput(types);
+    }
+  } catch (err) {
+    if (err.name === 'AbortError') {
+      return { success: false, error: 'cancelled' };
+    }
+    return { success: false, error: err.message || 'Unknown file open error' };
+  }
+}
+
+function _downloadBlob(content, filename) {
+  const blob = new Blob([content], { type: 'text/plain;charset=utf-8' });
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement('a');
+  a.href = url;
+  a.download = filename;
+  a.style.display = 'none';
+  document.body.appendChild(a);
+  a.click();
+  setTimeout(() => {
+    URL.revokeObjectURL(url);
+    document.body.removeChild(a);
+  }, 100);
+}
+
+function _uploadViaInput(types) {
+  return new Promise((resolve) => {
+    const input = document.createElement('input');
+    input.type = 'file';
+
+    if (types && types.length > 0) {
+      const extensions = types.flatMap(
+        (t) => t.accept ? Object.values(t.accept).flat() : []
+      );
+      input.accept = extensions.join(',');
+    }
+
+    input.style.display = 'none';
+    document.body.appendChild(input);
+
+    input.addEventListener('change', async () => {
+      const file = input.files[0];
+      if (!file) {
+        resolve({ success: false, error: 'cancelled' });
+      } else {
+        try {
+          const content = await file.text();
+          resolve({ success: true, content, name: file.name });
+        } catch (err) {
+          resolve({ success: false, error: err.message });
+        }
+      }
+      document.body.removeChild(input);
+    });
+
+    input.addEventListener('cancel', () => {
+      resolve({ success: false, error: 'cancelled' });
+      document.body.removeChild(input);
+    });
+
+    input.click();
+  });
+}
+
+const FILE_TYPES = {
+  ascii: [
+    {
+      description: 'Maze ASCII File',
+      accept: { 'text/plain': ['.txt'] },
+    },
+  ],
+  project: [
+    {
+      description: 'Maze Project File',
+      accept: { 'application/json': ['.json'] },
+    },
+  ],
+};
+
+// ============================================================
+// io/ascii-exporter.js
+// ============================================================
+
+const CHAR_MAP = { 0: '#', 1: ' ', 2: 'S', 3: 'E' };
+
+function generateASCII(maze) {
+  const header = [
+    `// Type: ${maze.type}`,
+    `// SubType: ${maze.subType || 'n/a'}`,
+    `// Dimensions: ${maze.rows}x${maze.columns}`,
+    `// Seed: ${maze.seed}`,
+    `// Generated: ${maze.createdAt}`,
+    `// Format: v1`,
+  ].join('\n');
+
+  let mazeData = '';
+  for (let r = 0; r < maze.rows; r++) {
+    for (let c = 0; c < maze.columns; c++) {
+      const idx = r * maze.columns + c;
+      mazeData += CHAR_MAP[maze.cells[idx]] || '#';
+    }
+    mazeData += '\n';
+  }
+
+  return header + '\n' + mazeData;
+}
+
+function getSuggestedFilename(maze) {
+  return `maze_${maze.type}_${maze.rows}x${maze.columns}.txt`;
+}
+
+// ============================================================
+// io/ascii-importer.js
+// ============================================================
+
+const VALID_CHARS = new Set(['#', ' ', 'S', 'E']);
+const REVERSE_MAP = { '#': 0, ' ': 1, 'S': 2, 'E': 3 };
+
+function parseASCII(content) {
+  const normalized = content.replace(/\r\n/g, '\n');
+  const lines = normalized.split('\n');
+
+  const headers = {};
+  const mazeLines = [];
+
+  for (const line of lines) {
+    if (line.startsWith('// ')) {
+      const colonIdx = line.indexOf(': ', 3);
+      if (colonIdx !== -1) {
+        const key = line.slice(3, colonIdx).trim().toLowerCase();
+        const value = line.slice(colonIdx + 2).trim();
+        headers[key] = value;
+      }
+    } else if (line.length > 0) {
+      mazeLines.push(line);
+    }
+  }
+
+  const errors = _validateImport(mazeLines);
+  if (errors.length > 0) {
+    return { success: false, errors };
+  }
+
+  const detectedType = _detectType(headers, mazeLines);
+
+  const rows = mazeLines.length;
+  const columns = mazeLines[0].length;
+  const cells = new Uint8Array(rows * columns);
+
+  for (let r = 0; r < rows; r++) {
+    for (let c = 0; c < columns; c++) {
+      cells[r * columns + c] = REVERSE_MAP[mazeLines[r][c]];
+    }
+  }
+
+  if (detectedType === 'classic') {
+    const classicErrors = _validateClassicImport(cells, rows, columns);
+    if (classicErrors.length > 0) {
+      return { success: false, errors: classicErrors };
+    }
+  }
+
+  let unsolvable = false;
+  if (detectedType === 'classic') {
+    const startIdx = findCellByValue(cells, 2);
+    const endIdx = findCellByValue(cells, 3);
+    if (startIdx >= 0 && endIdx >= 0) {
+      const path = findPath(cells, columns, rows, startIdx, endIdx, false);
+      unsolvable = path === null;
+    }
+  }
+
+  return {
+    success: true,
+    maze: {
+      rows,
+      columns,
+      cells,
+      type: detectedType,
+      seed: headers.seed ? parseInt(headers.seed, 10) : null,
+    },
+    unsolvable,
+    needsTypePrompt: detectedType === null,
+  };
+}
+
+function _validateImport(mazeLines) {
+  const errors = [];
+
+  if (mazeLines.length === 0) {
+    errors.push({ type: 'empty', detail: 'File contains no maze data.' });
+    return errors;
+  }
+
+  const expectedLength = mazeLines[0].length;
+
+  for (let r = 0; r < mazeLines.length; r++) {
+    const line = mazeLines[r];
+
+    if (line.length !== expectedLength) {
+      errors.push({
+        type: 'uneven_row',
+        row: r,
+        detail: `Row ${r} has ${line.length} characters (expected ${expectedLength}).`,
+      });
+    }
+
+    for (let c = 0; c < line.length; c++) {
+      if (!VALID_CHARS.has(line[c])) {
+        errors.push({
+          type: 'invalid_char',
+          row: r,
+          column: c,
+          detail: `Invalid character '${line[c]}' at row ${r}, column ${c}.`,
+        });
+      }
+    }
+  }
+
+  return errors;
+}
+
+function _validateClassicImport(cells, rows, columns) {
+  const errors = [];
+  let startCount = 0;
+  let endCount = 0;
+
+  for (let i = 0; i < cells.length; i++) {
+    if (cells[i] === 2) startCount++;
+    if (cells[i] === 3) endCount++;
+  }
+
+  if (startCount === 0) {
+    errors.push({ type: 'missing_start', detail: 'Classic maze must have exactly one Start point (S). None found.' });
+  } else if (startCount > 1) {
+    errors.push({ type: 'multiple_start', detail: `Classic maze must have exactly one Start point (S). Found ${startCount}.` });
+  }
+
+  if (endCount === 0) {
+    errors.push({ type: 'missing_end', detail: 'Classic maze must have exactly one End point (E). None found.' });
+  } else if (endCount > 1) {
+    errors.push({ type: 'multiple_end', detail: `Classic maze must have exactly one End point (E). Found ${endCount}.` });
+  }
+
+  return errors;
+}
+
+function _detectType(headers, mazeLines) {
+  if (headers.type) {
+    const t = headers.type.toLowerCase();
+    if (t === 'pacman' || t === 'classic') return t;
+  }
+
+  const allChars = mazeLines.join('');
+  const hasStart = allChars.includes('S');
+  const hasEnd = allChars.includes('E');
+
+  if (hasStart && hasEnd) return 'classic';
+  if (!hasStart && !hasEnd) return 'pacman';
+
+  return null;
+}
+
+// ============================================================
+// io/project-serializer.js
+// ============================================================
+
+const APP_VERSION = '1.0.0';
+const FORMAT_VERSION = '1.0';
+const MAX_SERIALIZED_HISTORY = 200;
+
+function serializeProject(maze, historyStack) {
+  const project = {
+    formatVersion: FORMAT_VERSION,
+    maze: {
+      type: maze.type,
+      subType: maze.subType,
+      rows: maze.rows,
+      columns: maze.columns,
+      seed: maze.seed,
+      cells: Array.from(maze.cells),
+      metadata: Object.fromEntries(maze.metadata || new Map()),
+      config: maze.config,
+      createdAt: maze.createdAt,
+      modifiedAt: new Date().toISOString(),
+    },
+    editor: {
+      undoStack: historyStack.undo.slice(-MAX_SERIALIZED_HISTORY),
+      redoStack: historyStack.redo.slice(-MAX_SERIALIZED_HISTORY),
+    },
+    appMetadata: {
+      appVersion: APP_VERSION,
+      savedAt: new Date().toISOString(),
+    },
+  };
+
+  return JSON.stringify(project, null, 2);
+}
+
+function deserializeProject(json) {
+  let parsed;
+  try {
+    parsed = JSON.parse(json);
+  } catch (err) {
+    return { success: false, error: `Invalid JSON: ${err.message}` };
+  }
+
+  if (!parsed.formatVersion) {
+    return { success: false, error: 'Missing formatVersion field. Not a valid Maze Builder project file.' };
+  }
+
+  if (!parsed.maze || !parsed.maze.cells || !parsed.maze.type) {
+    return { success: false, error: 'Missing required maze data fields.' };
+  }
+
+  let warning = null;
+  if (parsed.formatVersion !== FORMAT_VERSION) {
+    warning = `Project was saved with format version ${parsed.formatVersion} (current: ${FORMAT_VERSION}). Some features may not load correctly.`;
+  }
+
+  const maze = {
+    type: parsed.maze.type,
+    subType: parsed.maze.subType || null,
+    rows: parsed.maze.rows,
+    columns: parsed.maze.columns,
+    seed: parsed.maze.seed,
+    cells: new Uint8Array(parsed.maze.cells),
+    metadata: new Map(Object.entries(parsed.maze.metadata || {})),
+    config: parsed.maze.config || { density: 0.5, deadEndFrequency: 0.3, symmetry: 'none', edgeWrapping: false },
+    createdAt: parsed.maze.createdAt || new Date().toISOString(),
+    modifiedAt: parsed.maze.modifiedAt || new Date().toISOString(),
+  };
+
+  const editor = {
+    undoStack: parsed.editor?.undoStack || [],
+    redoStack: parsed.editor?.redoStack || [],
+  };
+
+  return { success: true, data: { maze, editor }, warning };
+}
+
+function getProjectFilename(maze) {
+  return `maze_project_${maze.type}_${maze.rows}x${maze.columns}.json`;
+}
+
+// ============================================================
+// io/autosave.js
+// ============================================================
+
+const STORAGE_KEY = 'maze_builder_autosave';
+const AUTOSAVE_INTERVAL = 60000;
+
+class AutosaveManager {
+  constructor(store) {
+    this.store = store;
+    this._intervalId = null;
+  }
+
+  start() {
+    this.stop();
+    this._intervalId = setInterval(() => this._tick(), AUTOSAVE_INTERVAL);
+  }
+
+  stop() {
+    if (this._intervalId !== null) {
+      clearInterval(this._intervalId);
+      this._intervalId = null;
+    }
+  }
+
+  _tick() {
+    if (!this.store.editor.isDirty || !this.store.maze) return;
+    this.save();
+  }
+
+  save() {
+    const maze = this.store.maze;
+    if (!maze) return;
+
+    const payload = {
+      type: maze.type,
+      subType: maze.subType,
+      rows: maze.rows,
+      columns: maze.columns,
+      seed: maze.seed,
+      cells: Array.from(maze.cells),
+      config: maze.config,
+      createdAt: maze.createdAt,
+      modifiedAt: new Date().toISOString(),
+      savedAt: new Date().toISOString(),
+    };
+
+    try {
+      localStorage.setItem(STORAGE_KEY, JSON.stringify(payload));
+    } catch (err) {
+      try {
+        const minimal = {
+          type: maze.type,
+          subType: maze.subType,
+          rows: maze.rows,
+          columns: maze.columns,
+          seed: maze.seed,
+          cells: Array.from(maze.cells),
+          config: maze.config,
+          createdAt: maze.createdAt,
+          modifiedAt: new Date().toISOString(),
+          savedAt: new Date().toISOString(),
+        };
+        localStorage.setItem(STORAGE_KEY, JSON.stringify(minimal));
+      } catch (innerErr) {
+        console.warn('Autosave failed: localStorage quota exceeded.');
+      }
+    }
+  }
+
+  hasRecoveryData() {
+    return localStorage.getItem(STORAGE_KEY) !== null;
+  }
+
+  getRecoveryData() {
+    const raw = localStorage.getItem(STORAGE_KEY);
+    if (!raw) return null;
+
+    try {
+      const data = JSON.parse(raw);
+      return {
+        type: data.type,
+        subType: data.subType || null,
+        rows: data.rows,
+        columns: data.columns,
+        seed: data.seed,
+        cells: new Uint8Array(data.cells),
+        metadata: new Map(),
+        config: data.config || { density: 0.5, deadEndFrequency: 0.3, symmetry: 'none', edgeWrapping: false },
+        createdAt: data.createdAt || new Date().toISOString(),
+        modifiedAt: data.modifiedAt || new Date().toISOString(),
+      };
+    } catch (err) {
+      console.warn('Failed to parse autosave data:', err);
+      return null;
+    }
+  }
+
+  clearRecoveryData() {
+    localStorage.removeItem(STORAGE_KEY);
+  }
+}
+
+// ============================================================
+// ui/modals.js
+// ============================================================
+
+const _overlay = () => document.getElementById('modal-overlay');
+const _content = () => document.getElementById('modal-content');
+
+let _previousFocus = null;
+let _onCloseCallback = null;
+
+function showModal(html, options) {
+  options = options || {};
+  _previousFocus = document.activeElement;
+  _onCloseCallback = options.onClose || null;
+
+  _content().innerHTML = html;
+  _overlay().hidden = false;
+
+  const focusable = _content().querySelectorAll(
+    'button, [href], input, select, textarea, [tabindex]:not([tabindex="-1"])'
+  );
+  if (focusable.length > 0) {
+    focusable[0].focus();
+  }
+
+  _overlay().addEventListener('keydown', _handleModalKeydown);
+  _overlay().addEventListener('click', _handleOverlayClick);
+}
+
+function closeModal(result) {
+  _overlay().hidden = true;
+  _overlay().removeEventListener('keydown', _handleModalKeydown);
+  _overlay().removeEventListener('click', _handleOverlayClick);
+  _content().innerHTML = '';
+
+  if (_previousFocus) {
+    _previousFocus.focus();
+    _previousFocus = null;
+  }
+
+  if (_onCloseCallback) {
+    _onCloseCallback(result);
+    _onCloseCallback = null;
+  }
+}
+
+function _handleModalKeydown(e) {
+  if (e.key === 'Escape') {
+    e.preventDefault();
+    closeModal('cancel');
+    return;
+  }
+
+  if (e.key === 'Tab') {
+    const focusable = _content().querySelectorAll(
+      'button, [href], input, select, textarea, [tabindex]:not([tabindex="-1"])'
+    );
+    if (focusable.length === 0) return;
+
+    const first = focusable[0];
+    const last = focusable[focusable.length - 1];
+
+    if (e.shiftKey && document.activeElement === first) {
+      e.preventDefault();
+      last.focus();
+    } else if (!e.shiftKey && document.activeElement === last) {
+      e.preventDefault();
+      first.focus();
+    }
+  }
+}
+
+function _handleOverlayClick(e) {
+  if (e.target === _overlay()) {
+    closeModal('cancel');
+  }
+}
+
+function showExportPreview(asciiContent) {
+  return new Promise((resolve) => {
+    const escaped = asciiContent.replace(/&/g, '&amp;').replace(/</g, '&lt;');
+    const html = `
+      <h2 class="modal-title">Export Preview</h2>
+      <div class="modal-preview">${escaped}</div>
+      <div class="modal-actions">
+        <button class="secondary-btn" id="modal-cancel">Cancel</button>
+        <button class="primary-btn" id="modal-confirm">Export</button>
+      </div>
+    `;
+    showModal(html, {
+      onClose: (result) => resolve(result === 'confirm'),
+    });
+    _content().querySelector('#modal-cancel').addEventListener('click', () => closeModal('cancel'));
+    _content().querySelector('#modal-confirm').addEventListener('click', () => closeModal('confirm'));
+  });
+}
+
+function showConfirmation(message, options) {
+  options = options || {};
+  const showSave = options.showSave !== false;
+  return new Promise((resolve) => {
+    const html = `
+      <h2 class="modal-title">Unsaved Changes</h2>
+      <div class="modal-body">${message}</div>
+      <div class="modal-actions">
+        <button class="secondary-btn" id="modal-cancel">Cancel</button>
+        <button class="secondary-btn" id="modal-discard" style="color: var(--color-danger)">Discard</button>
+        ${showSave ? '<button class="primary-btn" id="modal-save">Save</button>' : ''}
+      </div>
+    `;
+    showModal(html, {
+      onClose: (result) => resolve(result || 'cancel'),
+    });
+    _content().querySelector('#modal-cancel').addEventListener('click', () => closeModal('cancel'));
+    _content().querySelector('#modal-discard').addEventListener('click', () => closeModal('discard'));
+    if (showSave) {
+      _content().querySelector('#modal-save').addEventListener('click', () => closeModal('save'));
+    }
+  });
+}
+
+function showError(title, message, options) {
+  options = options || {};
+  return new Promise((resolve) => {
+    const html = `
+      <h2 class="modal-title" style="color: var(--color-danger)">${title}</h2>
+      <div class="modal-body">${message}</div>
+      <div class="modal-actions">
+        ${options.showRetry ? '<button class="secondary-btn" id="modal-retry">Retry</button>' : ''}
+        <button class="primary-btn" id="modal-ok">OK</button>
+      </div>
+    `;
+    showModal(html, {
+      onClose: (result) => resolve(result || 'ok'),
+    });
+    _content().querySelector('#modal-ok').addEventListener('click', () => closeModal('ok'));
+    if (options.showRetry) {
+      _content().querySelector('#modal-retry').addEventListener('click', () => closeModal('retry'));
+    }
+  });
+}
+
+function showTypeSelection() {
+  return new Promise((resolve) => {
+    const html = `
+      <h2 class="modal-title">Select Maze Type</h2>
+      <div class="modal-body">The imported file does not specify a maze type. Please select one:</div>
+      <div class="radio-group" style="margin-bottom: var(--space-lg)">
+        <label class="radio-label">
+          <input type="radio" name="import-type" value="pacman"> Pac-Man
+        </label>
+        <label class="radio-label">
+          <input type="radio" name="import-type" value="classic"> Classic
+        </label>
+      </div>
+      <div class="modal-actions">
+        <button class="secondary-btn" id="modal-cancel">Cancel</button>
+        <button class="primary-btn" id="modal-confirm">Confirm</button>
+      </div>
+    `;
+    showModal(html, {
+      onClose: (result) => resolve(result === 'cancel' ? null : result),
+    });
+    _content().querySelector('#modal-cancel').addEventListener('click', () => closeModal('cancel'));
+    _content().querySelector('#modal-confirm').addEventListener('click', () => {
+      const selected = _content().querySelector('input[name="import-type"]:checked');
+      closeModal(selected ? selected.value : 'cancel');
+    });
+  });
+}
+
+function showRecoveryPrompt() {
+  return new Promise((resolve) => {
+    const html = `
+      <h2 class="modal-title">Recover Unsaved Work</h2>
+      <div class="modal-body">A previous session was not saved. Would you like to restore it?</div>
+      <div class="modal-actions">
+        <button class="secondary-btn" id="modal-discard">Discard</button>
+        <button class="primary-btn" id="modal-restore">Restore</button>
+      </div>
+    `;
+    showModal(html, {
+      onClose: (result) => resolve(result === 'restore'),
+    });
+    _content().querySelector('#modal-discard').addEventListener('click', () => closeModal('discard'));
+    _content().querySelector('#modal-restore').addEventListener('click', () => closeModal('restore'));
+  });
+}
+
+// ============================================================
+// rendering/canvas-renderer.js
+// ============================================================
+
+const RENDERER_COLORS = {
+  wall: '#2d3748',
+  pathway: '#f7fafc',
+  start: '#38a169',
+  end: '#e53e3e',
+  gridLine: '#4a5568',
+  focus: '#805ad5',
+  background: '#171923',
+};
+
+class CanvasRenderer {
+  constructor(canvas, store) {
+    this.canvas = canvas;
+    this.ctx = canvas.getContext('2d');
+    this.store = store;
+    this.focusCell = null;
+    this._overlayCallback = null;
+
+    store.subscribe('maze-replaced', () => this.fitToScreen());
+    store.subscribe('cells-changed', (changes) => this.renderDirtyRegion(changes));
+    store.subscribe('view-changed', () => this.render());
+    store.subscribe('grid-lines-changed', () => this.render());
+    store.subscribe('cursor-changed', () => this.renderCursorUpdate());
+
+    this._resizeObserver = new ResizeObserver(() => this.handleResize());
+    this._resizeObserver.observe(canvas.parentElement);
+  }
+
+  handleResize() {
+    const parent = this.canvas.parentElement;
+    if (!parent) return;
+    const w = parent.clientWidth;
+    const h = parent.clientHeight;
+    if (w === 0 || h === 0) return;
+
+    const dpr = window.devicePixelRatio || 1;
+    this.canvas.width = w * dpr;
+    this.canvas.height = h * dpr;
+    this.canvas.style.width = w + 'px';
+    this.canvas.style.height = h + 'px';
+    this.ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+    this.render();
+  }
+
+  fitToScreen() {
+    const maze = this.store.maze;
+    if (!maze) return;
+
+    const emptyState = document.getElementById('empty-state');
+    if (emptyState) emptyState.hidden = true;
+
+    const parent = this.canvas.parentElement;
+    if (!parent) return;
+    const availW = parent.clientWidth - 20;
+    const availH = parent.clientHeight - 20;
+    if (availW <= 0 || availH <= 0) return;
+
+    const cellW = availW / maze.columns;
+    const cellH = availH / maze.rows;
+    const cellSize = Math.max(8, Math.min(Math.floor(Math.min(cellW, cellH)), 40));
+
+    const zoom = cellSize / 16;
+    const totalW = cellSize * maze.columns;
+    const totalH = cellSize * maze.rows;
+    const panX = Math.floor((parent.clientWidth - totalW) / 2);
+    const panY = Math.floor((parent.clientHeight - totalH) / 2);
+
+    this.store.setViewTransform(zoom, panX, panY);
+    this.handleResize();
+  }
+
+  render() {
+    const maze = this.store.maze;
+    const ctx = this.ctx;
+    const view = this.store.view;
+    const dpr = window.devicePixelRatio || 1;
+
+    const w = this.canvas.width / dpr;
+    const h = this.canvas.height / dpr;
+
+    // Clear canvas
+    ctx.clearRect(0, 0, w, h);
+
+    if (!maze) return;
+
+    // Fill background only when maze exists
+    ctx.fillStyle = RENDERER_COLORS.background;
+    ctx.fillRect(0, 0, w, h);
+
+    const cellSize = view.cellSize;
+    const offsetX = view.panX;
+    const offsetY = view.panY;
+
+    for (let r = 0; r < maze.rows; r++) {
+      for (let c = 0; c < maze.columns; c++) {
+        const x = offsetX + c * cellSize;
+        const y = offsetY + r * cellSize;
+
+        if (x + cellSize < 0 || x > w || y + cellSize < 0 || y > h) continue;
+
+        const idx = r * maze.columns + c;
+        const cellValue = maze.cells[idx];
+
+        ctx.fillStyle = this._getCellColor(cellValue);
+        ctx.fillRect(x, y, cellSize, cellSize);
+
+        if (cellValue === 2) {
+          this._drawStartMarker(ctx, x, y, cellSize);
+        } else if (cellValue === 3) {
+          this._drawEndMarker(ctx, x, y, cellSize);
+        }
+      }
+    }
+
+    if (this.store.editor.showGridLines && cellSize >= 8) {
+      this._drawGridLines(ctx, maze, cellSize, offsetX, offsetY, w, h);
+    }
+
+    if (this.focusCell) {
+      this._drawFocusIndicator(ctx, this.focusCell, cellSize, offsetX, offsetY);
+    }
+
+    if (this._overlayCallback) {
+      this._overlayCallback();
+    }
+  }
+
+  setOverlayCallback(callback) {
+    this._overlayCallback = callback;
+  }
+
+  _getCellColor(value) {
+    switch (value) {
+      case 0: return RENDERER_COLORS.wall;
+      case 1: return RENDERER_COLORS.pathway;
+      case 2: return RENDERER_COLORS.pathway;
+      case 3: return RENDERER_COLORS.pathway;
+      default: return RENDERER_COLORS.wall;
+    }
+  }
+
+  _drawStartMarker(ctx, x, y, cellSize) {
+    const cx = x + cellSize / 2;
+    const cy = y + cellSize / 2;
+    const radius = cellSize * 0.35;
+
+    ctx.beginPath();
+    ctx.arc(cx, cy, radius, 0, Math.PI * 2);
+    ctx.fillStyle = RENDERER_COLORS.start;
+    ctx.fill();
+  }
+
+  _drawEndMarker(ctx, x, y, cellSize) {
+    const cx = x + cellSize / 2;
+    const cy = y + cellSize / 2;
+    const r = cellSize * 0.35;
+
+    ctx.beginPath();
+    ctx.moveTo(cx, cy - r);
+    ctx.lineTo(cx + r, cy);
+    ctx.lineTo(cx, cy + r);
+    ctx.lineTo(cx - r, cy);
+    ctx.closePath();
+    ctx.fillStyle = RENDERER_COLORS.end;
+    ctx.fill();
+  }
+
+  _drawGridLines(ctx, maze, cellSize, offsetX, offsetY, viewW, viewH) {
+    ctx.strokeStyle = RENDERER_COLORS.gridLine;
+    ctx.lineWidth = 0.5;
+    ctx.globalAlpha = 0.3;
+
+    for (let c = 0; c <= maze.columns; c++) {
+      const x = offsetX + c * cellSize;
+      if (x < 0 || x > viewW) continue;
+      ctx.beginPath();
+      ctx.moveTo(x, Math.max(0, offsetY));
+      ctx.lineTo(x, Math.min(viewH, offsetY + maze.rows * cellSize));
+      ctx.stroke();
+    }
+
+    for (let r = 0; r <= maze.rows; r++) {
+      const y = offsetY + r * cellSize;
+      if (y < 0 || y > viewH) continue;
+      ctx.beginPath();
+      ctx.moveTo(Math.max(0, offsetX), y);
+      ctx.lineTo(Math.min(viewW, offsetX + maze.columns * cellSize), y);
+      ctx.stroke();
+    }
+
+    ctx.globalAlpha = 1;
+  }
+
+  _drawFocusIndicator(ctx, cell, cellSize, offsetX, offsetY) {
+    const x = offsetX + cell.col * cellSize;
+    const y = offsetY + cell.row * cellSize;
+
+    ctx.strokeStyle = RENDERER_COLORS.focus;
+    ctx.lineWidth = 2;
+    ctx.strokeRect(x + 1, y + 1, cellSize - 2, cellSize - 2);
+  }
+
+  renderDirtyRegion(changes) {
+    const maze = this.store.maze;
+    if (!maze) return;
+
+    const ctx = this.ctx;
+    const view = this.store.view;
+    const cellSize = view.cellSize;
+    const offsetX = view.panX;
+    const offsetY = view.panY;
+
+    for (const change of changes) {
+      const idx = change.index;
+      const r = Math.floor(idx / maze.columns);
+      const c = idx % maze.columns;
+      const x = offsetX + c * cellSize;
+      const y = offsetY + r * cellSize;
+
+      const cellValue = maze.cells[idx];
+
+      ctx.fillStyle = this._getCellColor(cellValue);
+      ctx.fillRect(x, y, cellSize, cellSize);
+
+      if (cellValue === 2) this._drawStartMarker(ctx, x, y, cellSize);
+      else if (cellValue === 3) this._drawEndMarker(ctx, x, y, cellSize);
+
+      if (this.store.editor.showGridLines && cellSize >= 8) {
+        ctx.strokeStyle = RENDERER_COLORS.gridLine;
+        ctx.lineWidth = 0.5;
+        ctx.globalAlpha = 0.3;
+        ctx.strokeRect(x, y, cellSize, cellSize);
+        ctx.globalAlpha = 1;
+      }
+    }
+  }
+
+  cellAtPixel(pixelX, pixelY) {
+    const maze = this.store.maze;
+    if (!maze) return null;
+
+    const view = this.store.view;
+    const cellSize = view.cellSize;
+
+    const col = Math.floor((pixelX - view.panX) / cellSize);
+    const row = Math.floor((pixelY - view.panY) / cellSize);
+
+    if (row < 0 || row >= maze.rows || col < 0 || col >= maze.columns) {
+      return null;
+    }
+
+    return { row, col };
+  }
+
+  setFocusCell(row, col) {
+    this.focusCell = { row, col };
+    this.render();
+  }
+
+  renderCursorUpdate() {
+    // Hook for future hover highlighting
+  }
+
+  setZoom(level) {
+    const clamped = Math.max(0.25, Math.min(4.0, level));
+    const view = this.store.view;
+    this.store.setViewTransform(clamped, view.panX, view.panY);
+  }
+
+  setPan(x, y) {
+    const view = this.store.view;
+    this.store.setViewTransform(view.zoom, x, y);
+  }
+}
+
+// ============================================================
+// rendering/minimap-renderer.js
+// ============================================================
+
+const MINIMAP_COLORS = {
+  wall: '#2d3748',
+  pathway: '#f7fafc',
+  start: '#38a169',
+  end: '#e53e3e',
+  viewport: 'rgba(66, 153, 225, 0.5)',
+  viewportBorder: '#4299e1',
+  background: '#1a202c',
+};
+
+const MAX_MINIMAP_SIZE = 200;
+
+class MinimapRenderer {
+  constructor(canvas, store, mainRenderer) {
+    this.canvas = canvas;
+    this.ctx = canvas.getContext('2d');
+    this.store = store;
+    this.mainRenderer = mainRenderer;
+    this._scale = 1;
+
+    store.subscribe('maze-replaced', () => this.render());
+    store.subscribe('cells-changed', () => this.render());
+    store.subscribe('view-changed', () => this.render());
+
+    canvas.addEventListener('click', (e) => this._handleClick(e));
+  }
+
+  render() {
+    const maze = this.store.maze;
+    if (!maze) return;
+
+    if (maze.rows <= 30 && maze.columns <= 30) {
+      this.canvas.hidden = true;
+      return;
+    }
+    this.canvas.hidden = false;
+
+    const scaleX = MAX_MINIMAP_SIZE / maze.columns;
+    const scaleY = MAX_MINIMAP_SIZE / maze.rows;
+    const scale = Math.min(scaleX, scaleY, 2);
+
+    const width = Math.ceil(maze.columns * scale);
+    const height = Math.ceil(maze.rows * scale);
+
+    this.canvas.width = width;
+    this.canvas.height = height;
+    this.canvas.style.width = width + 'px';
+    this.canvas.style.height = height + 'px';
+    this._scale = scale;
+
+    const ctx = this.ctx;
+
+    ctx.fillStyle = MINIMAP_COLORS.background;
+    ctx.fillRect(0, 0, width, height);
+
+    for (let r = 0; r < maze.rows; r++) {
+      for (let c = 0; c < maze.columns; c++) {
+        const idx = r * maze.columns + c;
+        const value = maze.cells[idx];
+
+        let color;
+        switch (value) {
+          case 0: color = MINIMAP_COLORS.wall; break;
+          case 1: color = MINIMAP_COLORS.pathway; break;
+          case 2: color = MINIMAP_COLORS.start; break;
+          case 3: color = MINIMAP_COLORS.end; break;
+          default: color = MINIMAP_COLORS.wall;
+        }
+
+        ctx.fillStyle = color;
+        ctx.fillRect(
+          Math.floor(c * scale),
+          Math.floor(r * scale),
+          Math.ceil(scale),
+          Math.ceil(scale)
+        );
+      }
+    }
+
+    this._drawViewport(ctx, maze, scale, width, height);
+  }
+
+  _drawViewport(ctx, maze, scale, minimapW, minimapH) {
+    const view = this.store.view;
+    const parent = this.mainRenderer.canvas.parentElement;
+    if (!parent) return;
+
+    const viewW = parent.clientWidth;
+    const viewH = parent.clientHeight;
+    const cellSize = view.cellSize;
+
+    const startCol = Math.max(0, Math.floor(-view.panX / cellSize));
+    const startRow = Math.max(0, Math.floor(-view.panY / cellSize));
+    const endCol = Math.min(maze.columns, Math.ceil((viewW - view.panX) / cellSize));
+    const endRow = Math.min(maze.rows, Math.ceil((viewH - view.panY) / cellSize));
+
+    const x = startCol * scale;
+    const y = startRow * scale;
+    const w = (endCol - startCol) * scale;
+    const h = (endRow - startRow) * scale;
+
+    ctx.fillStyle = MINIMAP_COLORS.viewport;
+    ctx.fillRect(x, y, w, h);
+
+    ctx.strokeStyle = MINIMAP_COLORS.viewportBorder;
+    ctx.lineWidth = 1.5;
+    ctx.strokeRect(x, y, w, h);
+  }
+
+  _handleClick(e) {
+    const maze = this.store.maze;
+    if (!maze || !this._scale) return;
+
+    const rect = this.canvas.getBoundingClientRect();
+    const x = e.clientX - rect.left;
+    const y = e.clientY - rect.top;
+
+    const col = Math.floor(x / this._scale);
+    const row = Math.floor(y / this._scale);
+
+    const parent = this.mainRenderer.canvas.parentElement;
+    const viewW = parent.clientWidth;
+    const viewH = parent.clientHeight;
+    const cellSize = this.store.view.cellSize;
+
+    const panX = viewW / 2 - col * cellSize;
+    const panY = viewH / 2 - row * cellSize;
+
+    this.store.setViewTransform(this.store.view.zoom, panX, panY);
+  }
+}
+
+// ============================================================
+// rendering/overlay-renderer.js
+// ============================================================
+
+const OVERLAY_COLORS = {
+  path: '#4299e1',
+  unreachable: '#fbd38d',
+  warningBorder: '#ed8936',
+};
+
+class OverlayRenderer {
+  constructor(canvas, store) {
+    this.canvas = canvas;
+    this.ctx = canvas.getContext('2d');
+    this.store = store;
+
+    this._pathCache = null;
+    this._unreachableCache = null;
+    this._debounceTimer = null;
+
+    store.subscribe('cells-changed', () => this._scheduleUpdate());
+    store.subscribe('maze-replaced', () => this._invalidateCache());
+    store.subscribe('overlay-changed', () => this.render());
+    store.subscribe('path-status-changed', () => this.render());
+  }
+
+  render() {
+    const maze = this.store.maze;
+    if (!maze) return;
+
+    const editor = this.store.editor;
+    const view = this.store.view;
+    const ctx = this.ctx;
+    const cellSize = view.cellSize;
+    const offsetX = view.panX;
+    const offsetY = view.panY;
+
+    if (editor.showPathOverlay && maze.type === 'classic') {
+      this._renderPathOverlay(ctx, maze, cellSize, offsetX, offsetY);
+    }
+
+    if (editor.showUnreachable) {
+      this._renderUnreachableOverlay(ctx, maze, cellSize, offsetX, offsetY);
+    }
+
+    if (editor.isPathValid === false && maze.type === 'classic') {
+      this._renderWarningBorder(ctx);
+    }
+  }
+
+  _renderPathOverlay(ctx, maze, cellSize, offsetX, offsetY) {
+    if (!this._pathCache) {
+      this._computePath(maze);
+    }
+
+    if (!this._pathCache || this._pathCache.length === 0) {
+      ctx.save();
+      ctx.font = '14px -apple-system, sans-serif';
+      ctx.fillStyle = OVERLAY_COLORS.warningBorder;
+      ctx.textAlign = 'center';
+      const parent = this.canvas.parentElement;
+      ctx.fillText('No path found', parent.clientWidth / 2, 30);
+      ctx.restore();
+      return;
+    }
+
+    ctx.save();
+    ctx.strokeStyle = OVERLAY_COLORS.path;
+    ctx.lineWidth = Math.max(2, cellSize * 0.3);
+    ctx.setLineDash([cellSize * 0.4, cellSize * 0.2]);
+    ctx.lineCap = 'round';
+    ctx.globalAlpha = 0.7;
+
+    ctx.beginPath();
+    for (let i = 0; i < this._pathCache.length; i++) {
+      const idx = this._pathCache[i];
+      const row = Math.floor(idx / maze.columns);
+      const col = idx % maze.columns;
+      const x = offsetX + col * cellSize + cellSize / 2;
+      const y = offsetY + row * cellSize + cellSize / 2;
+
+      if (i === 0) {
+        ctx.moveTo(x, y);
+      } else {
+        ctx.lineTo(x, y);
+      }
+    }
+    ctx.stroke();
+    ctx.restore();
+  }
+
+  _renderUnreachableOverlay(ctx, maze, cellSize, offsetX, offsetY) {
+    if (!this._unreachableCache) {
+      this._computeUnreachable(maze);
+    }
+
+    if (!this._unreachableCache || this._unreachableCache.size === 0) return;
+
+    ctx.save();
+    ctx.globalAlpha = 0.5;
+
+    for (const idx of this._unreachableCache) {
+      const row = Math.floor(idx / maze.columns);
+      const col = idx % maze.columns;
+      const x = offsetX + col * cellSize;
+      const y = offsetY + row * cellSize;
+
+      ctx.fillStyle = OVERLAY_COLORS.unreachable;
+      ctx.fillRect(x, y, cellSize, cellSize);
+
+      ctx.strokeStyle = '#c05621';
+      ctx.lineWidth = 1;
+      ctx.beginPath();
+      ctx.moveTo(x, y + cellSize);
+      ctx.lineTo(x + cellSize, y);
+      ctx.stroke();
+    }
+
+    ctx.restore();
+  }
+
+  _renderWarningBorder(ctx) {
+    const parent = this.canvas.parentElement;
+    if (!parent) return;
+
+    const w = parent.clientWidth;
+    const h = parent.clientHeight;
+
+    ctx.save();
+    ctx.strokeStyle = OVERLAY_COLORS.warningBorder;
+    ctx.lineWidth = 3;
+    ctx.globalAlpha = 0.8;
+    ctx.setLineDash([8, 4]);
+    ctx.strokeRect(2, 2, w - 4, h - 4);
+    ctx.restore();
+  }
+
+  _computePath(maze) {
+    const startIdx = findCellByValue(maze.cells, 2);
+    const endIdx = findCellByValue(maze.cells, 3);
+
+    if (startIdx === -1 || endIdx === -1) {
+      this._pathCache = [];
+      return;
+    }
+
+    this._pathCache = findPath(maze.cells, maze.columns, maze.rows, startIdx, endIdx, false);
+    if (!this._pathCache) this._pathCache = [];
+  }
+
+  _computeUnreachable(maze) {
+    this._unreachableCache = new Set();
+
+    let anchorIdx;
+    if (maze.type === 'classic') {
+      anchorIdx = findCellByValue(maze.cells, 2);
+    } else {
+      for (let i = 0; i < maze.cells.length; i++) {
+        if (maze.cells[i] !== 0) { anchorIdx = i; break; }
+      }
+    }
+
+    if (anchorIdx === undefined || anchorIdx === -1) return;
+
+    const edgeWrapping = maze.config?.edgeWrapping || false;
+    const { connected } = floodFill(maze.cells, maze.columns, maze.rows, anchorIdx, edgeWrapping);
+
+    for (let i = 0; i < maze.cells.length; i++) {
+      if (maze.cells[i] !== 0 && !connected[i]) {
+        this._unreachableCache.add(i);
+      }
+    }
+  }
+
+  _invalidateCache() {
+    this._pathCache = null;
+    this._unreachableCache = null;
+  }
+
+  _scheduleUpdate() {
+    if (this._debounceTimer) {
+      clearTimeout(this._debounceTimer);
+    }
+    this._debounceTimer = setTimeout(() => {
+      this._invalidateCache();
+      this.render();
+      this._debounceTimer = null;
+    }, 200);
+  }
+}
+
+// ============================================================
+// rendering/tool-preview.js
+// ============================================================
+
+const PREVIEW_COLOR = 'rgba(66, 153, 225, 0.4)';
+const PREVIEW_BORDER = 'rgba(66, 153, 225, 0.8)';
+
+class ToolPreviewRenderer {
+  constructor(canvas, store) {
+    this.canvas = canvas;
+    this.ctx = canvas.getContext('2d');
+    this.store = store;
+    this._preview = null;
+  }
+
+  setRectPreview(rect) {
+    this._preview = { type: 'rect', startRow: rect.startRow, startCol: rect.startCol, endRow: rect.endRow, endCol: rect.endCol };
+  }
+
+  setLinePreview(line) {
+    this._preview = { type: 'line', startRow: line.startRow, startCol: line.startCol, endRow: line.endRow, endCol: line.endCol };
+  }
+
+  clearPreview() {
+    this._preview = null;
+  }
+
+  render() {
+    if (!this._preview) return;
+
+    const maze = this.store.maze;
+    if (!maze) return;
+
+    const view = this.store.view;
+    const cellSize = view.cellSize;
+    const offsetX = view.panX;
+    const offsetY = view.panY;
+    const ctx = this.ctx;
+
+    ctx.save();
+
+    if (this._preview.type === 'rect') {
+      const minR = Math.min(this._preview.startRow, this._preview.endRow);
+      const maxR = Math.max(this._preview.startRow, this._preview.endRow);
+      const minC = Math.min(this._preview.startCol, this._preview.endCol);
+      const maxC = Math.max(this._preview.startCol, this._preview.endCol);
+
+      const x = offsetX + minC * cellSize;
+      const y = offsetY + minR * cellSize;
+      const w = (maxC - minC + 1) * cellSize;
+      const h = (maxR - minR + 1) * cellSize;
+
+      ctx.fillStyle = PREVIEW_COLOR;
+      ctx.fillRect(x, y, w, h);
+      ctx.strokeStyle = PREVIEW_BORDER;
+      ctx.lineWidth = 2;
+      ctx.setLineDash([4, 4]);
+      ctx.strokeRect(x, y, w, h);
+    } else if (this._preview.type === 'line') {
+      const points = _bresenhamPreview(
+        this._preview.startRow, this._preview.startCol,
+        this._preview.endRow, this._preview.endCol
+      );
+
+      ctx.fillStyle = PREVIEW_COLOR;
+      for (const { row, col } of points) {
+        ctx.fillRect(
+          offsetX + col * cellSize,
+          offsetY + row * cellSize,
+          cellSize,
+          cellSize
+        );
+      }
+    }
+
+    ctx.restore();
+  }
+}
+
+function _bresenhamPreview(r0, c0, r1, c1) {
+  const points = [];
+  let dr = Math.abs(r1 - r0);
+  let dc = Math.abs(c1 - c0);
+  let sr = r0 < r1 ? 1 : -1;
+  let sc = c0 < c1 ? 1 : -1;
+  let err = dr - dc;
+
+  let r = r0, c = c0;
+  while (true) {
+    points.push({ row: r, col: c });
+    if (r === r1 && c === c1) break;
+    const e2 = 2 * err;
+    if (e2 > -dc) { err -= dc; r += sr; }
+    if (e2 < dr) { err += dr; c += sc; }
+  }
+  return points;
+}
+
+// ============================================================
+// ui/config-panel.js
+// ============================================================
+
+class ConfigPanel {
+  constructor(store) {
+    this.store = store;
+    this._bindEvents();
+    this._updateVisibility();
+  }
+
+  _bindEvents() {
+    document.querySelectorAll('input[name="maze-type"]').forEach((radio) => {
+      radio.addEventListener('change', () => this._updateVisibility());
+    });
+
+    document.querySelectorAll('input[name="classic-subtype"]').forEach((radio) => {
+      radio.addEventListener('change', () => this._updateVisibility());
+    });
+
+    document.getElementById('input-rows').addEventListener('change', (e) => {
+      this._validateDimension(e.target, 'Rows');
+    });
+    document.getElementById('input-cols').addEventListener('change', (e) => {
+      this._validateDimension(e.target, 'Columns');
+    });
+
+    document.getElementById('slider-density').addEventListener('input', (e) => {
+      document.getElementById('density-value').textContent = (e.target.value / 100).toFixed(1);
+    });
+
+    document.getElementById('slider-dead-ends').addEventListener('input', (e) => {
+      document.getElementById('dead-ends-value').textContent = (e.target.value / 100).toFixed(1);
+    });
+
+    document.getElementById('btn-copy-seed').addEventListener('click', () => {
+      const seed = this.store.maze?.seed;
+      if (seed != null) {
+        navigator.clipboard.writeText(String(seed)).then(() => {
+          const btn = document.getElementById('btn-copy-seed');
+          const original = btn.textContent;
+          btn.textContent = '✓';
+          setTimeout(() => { btn.textContent = original; }, 1500);
+        });
+      }
+    });
+  }
+
+  _updateVisibility() {
+    const type = document.querySelector('input[name="maze-type"]:checked')?.value;
+    const subType = document.querySelector('input[name="classic-subtype"]:checked')?.value;
+
+    document.getElementById('classic-sub-options').hidden = type !== 'classic';
+    document.getElementById('section-dead-ends').hidden = !(type === 'classic' && subType === 'imperfect');
+    document.getElementById('section-symmetry').hidden = type !== 'pacman';
+    document.getElementById('section-density').hidden = !type;
+  }
+
+  _validateDimension(input, label) {
+    const value = parseInt(input.value, 10);
+    const errorEl = document.getElementById('dim-error');
+
+    if (isNaN(value)) {
+      errorEl.textContent = `${label} must be a positive integer.`;
+      errorEl.hidden = false;
+      input.style.borderColor = 'var(--color-danger)';
+      return false;
+    }
+
+    if (value < 5 || value > 100) {
+      errorEl.textContent = `${label} must be between 5 and 100.`;
+      errorEl.hidden = false;
+      input.style.borderColor = 'var(--color-danger)';
+      return false;
+    }
+
+    errorEl.hidden = true;
+    input.style.borderColor = '';
+    return true;
+  }
+
+  readConfig() {
+    const type = document.querySelector('input[name="maze-type"]:checked')?.value || null;
+    const subType = type === 'classic'
+      ? document.querySelector('input[name="classic-subtype"]:checked')?.value || null
+      : null;
+
+    return {
+      type,
+      subType,
+      rows: document.getElementById('input-rows').value,
+      columns: document.getElementById('input-cols').value,
+      seed: document.getElementById('input-seed').value || null,
+      density: parseInt(document.getElementById('slider-density').value, 10) / 100,
+      deadEndFrequency: parseInt(document.getElementById('slider-dead-ends').value, 10) / 100,
+      symmetry: document.getElementById('select-symmetry').value,
+      edgeWrapping: document.getElementById('check-wrapping').checked,
+    };
+  }
+}
+
+// ============================================================
+// ui/toolbar.js
+// ============================================================
+
+class Toolbar {
+  constructor(store, history) {
+    this.store = store;
+    this.history = history;
+    this._bindStateListeners();
+  }
+
+  _bindStateListeners() {
+    this.store.subscribe('tool-changed', (tool) => {
+      document.querySelectorAll('.tool-btn[data-tool]').forEach((btn) => {
+        btn.classList.toggle('active', btn.dataset.tool === tool);
+      });
+    });
+
+    this.store.subscribe('paint-mode-changed', (mode) => {
+      const label = document.getElementById('paint-mode-label');
+      if (label) {
+        label.textContent = mode === 'wall' ? 'Wall' : 'Path';
+      }
+      const btn = document.getElementById('btn-paint-mode');
+      if (btn) {
+        btn.classList.toggle('active', mode === 'pathway');
+      }
+    });
+
+    this.store.subscribe('cells-changed', () => this._updateUndoRedo());
+    this.store.subscribe('maze-replaced', () => this._updateUndoRedo());
+    this.store.subscribe('dirty-changed', () => this._updateUndoRedo());
+  }
+
+  _updateUndoRedo() {
+    const undoBtn = document.getElementById('btn-undo');
+    const redoBtn = document.getElementById('btn-redo');
+    if (undoBtn) undoBtn.disabled = !this.history.canUndo();
+    if (redoBtn) redoBtn.disabled = !this.history.canRedo();
+  }
+}
+
+// ============================================================
+// ui/status-bar.js
+// ============================================================
+
+class StatusBar {
+  constructor(store) {
+    this.store = store;
+    this._bindStateListeners();
+  }
+
+  _bindStateListeners() {
+    this.store.subscribe('maze-replaced', (maze) => {
+      this._updateSeed(maze.seed);
+      this._updateDimensions(maze.rows, maze.columns);
+      this._updateType(maze.type, maze.subType);
+      this._updateWarning(null);
+    });
+
+    this.store.subscribe('path-status-changed', (valid) => {
+      if (valid === false) {
+        this._updateWarning('⚠ No path found');
+      } else {
+        this._updateWarning(null);
+      }
+    });
+
+    this.store.subscribe('cursor-changed', (cell) => {
+      const coordEl = document.getElementById('coordinates');
+      if (coordEl) {
+        coordEl.textContent = cell ? `(${cell.row}, ${cell.col})` : '--';
+      }
+    });
+  }
+
+  _updateSeed(seed) {
+    const el = document.getElementById('status-seed');
+    if (el) el.textContent = `Seed: ${seed}`;
+  }
+
+  _updateDimensions(rows, columns) {
+    const el = document.getElementById('status-dims');
+    if (el) el.textContent = `${rows}×${columns}`;
+  }
+
+  _updateType(type, subType) {
+    const el = document.getElementById('status-type');
+    if (!el) return;
+
+    if (type === 'classic') {
+      el.textContent = `Classic ${subType ? subType.charAt(0).toUpperCase() + subType.slice(1) : ''}`;
+    } else if (type === 'pacman') {
+      el.textContent = 'Pac-Man';
+    } else {
+      el.textContent = 'No maze';
+    }
+  }
+
+  _updateWarning(message) {
+    const el = document.getElementById('status-warning');
+    if (!el) return;
+
+    if (message) {
+      el.textContent = message;
+      el.hidden = false;
+    } else {
+      el.textContent = '';
+      el.hidden = true;
+    }
+  }
+}
+
+// ============================================================
+// ui/keyboard.js
+// ============================================================
+
+function initKeyboard(controllers) {
+  const { edit, file, store, renderer } = controllers;
+  const isMac = navigator.platform.toUpperCase().indexOf('MAC') >= 0;
+
+  document.addEventListener('keydown', (e) => {
+    if (e.target.tagName === 'INPUT' || e.target.tagName === 'TEXTAREA' || e.target.tagName === 'SELECT') {
+      return;
+    }
+
+    const mod = isMac ? e.metaKey : e.ctrlKey;
+
+    if (mod && !e.shiftKey && e.key === 'z') {
+      e.preventDefault();
+      edit.undo();
+      return;
+    }
+
+    if (mod && e.shiftKey && e.key === 'z') {
+      e.preventDefault();
+      edit.redo();
+      return;
+    }
+    if (!isMac && e.ctrlKey && e.key === 'y') {
+      e.preventDefault();
+      edit.redo();
+      return;
+    }
+
+    if (mod && e.key === 's') {
+      e.preventDefault();
+      file.saveProject();
+      return;
+    }
+
+    if (mod && e.key === 'o') {
+      e.preventDefault();
+      file.loadProject();
+      return;
+    }
+
+    if (!mod && !e.shiftKey && !e.altKey) {
+      switch (e.key) {
+        case '1': store.setEditorTool('pencil'); return;
+        case '2': store.setEditorTool('eraser'); return;
+        case '3': store.setEditorTool('rectangle'); return;
+        case '4': store.setEditorTool('line'); return;
+        case '5': store.setEditorTool('floodFill'); return;
+      }
+    }
+
+    if (e.key === 'x' || e.key === 'X') {
+      if (!mod) {
+        store.togglePaintMode();
+        return;
+      }
+    }
+
+    if (e.key === 'Delete' || e.key === 'Backspace') {
+      if (!mod && renderer.focusCell && store.maze) {
+        const { row, col } = renderer.focusCell;
+        const idx = row * store.maze.columns + col;
+        if (store.maze.cells[idx] !== 2 && store.maze.cells[idx] !== 3) {
+          edit.handlePointerDown(row, col);
+          edit.handlePointerUp(row, col);
+        }
+      }
+      return;
+    }
+
+    if (e.key === '+' || e.key === '=') {
+      renderer.setZoom(store.view.zoom * 1.25);
+      return;
+    }
+    if (e.key === '-') {
+      renderer.setZoom(store.view.zoom / 1.25);
+      return;
+    }
+
+    if (e.key === '0' && !mod) {
+      renderer.fitToScreen();
+      return;
+    }
+
+    if (['ArrowUp', 'ArrowDown', 'ArrowLeft', 'ArrowRight'].includes(e.key)) {
+      e.preventDefault();
+      _handleArrowKey(e.key, store, renderer);
+      return;
+    }
+
+    if ((e.key === 'Enter' || e.key === ' ') && renderer.focusCell && store.maze) {
+      e.preventDefault();
+      const { row, col } = renderer.focusCell;
+      edit.handlePointerDown(row, col);
+      edit.handlePointerUp(row, col);
+      return;
+    }
+  });
+}
+
+function _handleArrowKey(key, store, renderer) {
+  if (!store.maze) return;
+
+  if (!renderer.focusCell) {
+    renderer.setFocusCell(0, 0);
+    return;
+  }
+
+  let { row, col } = renderer.focusCell;
+
+  switch (key) {
+    case 'ArrowUp': row = Math.max(0, row - 1); break;
+    case 'ArrowDown': row = Math.min(store.maze.rows - 1, row + 1); break;
+    case 'ArrowLeft': col = Math.max(0, col - 1); break;
+    case 'ArrowRight': col = Math.min(store.maze.columns - 1, col + 1); break;
+  }
+
+  renderer.setFocusCell(row, col);
+  store.setCursorCell({ row, col });
+}
+
+// ============================================================
+// controllers/generation-controller.js
+// ============================================================
+
+class GenerationController {
+  constructor(store, history) {
+    this.store = store;
+    this.history = history;
+  }
+
+  validateConfig(config) {
+    const errors = [];
+
+    if (!config.type) {
+      errors.push('Please select a maze type before generating.');
+      return { valid: false, errors };
+    }
+
+    if (config.type === 'classic' && !config.subType) {
+      errors.push('Please select Perfect or Imperfect for Classic maze.');
+      return { valid: false, errors };
+    }
+
+    const rows = parseInt(config.rows, 10);
+    const cols = parseInt(config.columns, 10);
+
+    if (isNaN(rows) || rows < 5 || rows > 100) {
+      errors.push('Rows must be an integer between 5 and 100.');
+    }
+    if (isNaN(cols) || cols < 5 || cols > 100) {
+      errors.push('Columns must be an integer between 5 and 100.');
+    }
+
+    if (errors.length > 0) return { valid: false, errors };
+
+    const feasibility = checkConfigFeasibility(rows, cols, config);
+    if (!feasibility.feasible) {
+      errors.push(feasibility.reason);
+    }
+
+    return { valid: errors.length === 0, errors };
+  }
+
+  generate(config) {
+    const validation = this.validateConfig(config);
+    if (!validation.valid) {
+      return { success: false, error: validation.errors.join('\n') };
+    }
+
+    const rows = parseInt(config.rows, 10);
+    const columns = parseInt(config.columns, 10);
+    const seed = config.seed ? parseInt(config.seed, 10) : randomSeed();
+    const density = config.density ?? 0.5;
+    const deadEndFrequency = config.deadEndFrequency ?? 0.3;
+    const symmetry = config.symmetry || 'none';
+    const edgeWrapping = config.edgeWrapping || false;
+
+    let result;
+
+    if (config.type === 'classic') {
+      result = generateClassicMaze(rows, columns, {
+        type: config.type,
+        subType: config.subType,
+        density,
+        deadEndFrequency,
+      }, seed);
+    } else {
+      result = generatePacMan(rows, columns, {
+        symmetry,
+        edgeWrapping,
+      }, seed);
+    }
+
+    if (!result.cells) {
+      return { success: false, error: result.error || 'Generation failed.' };
+    }
+
+    const mazeState = {
+      type: config.type,
+      subType: config.subType || null,
+      rows,
+      columns,
+      seed: result.seed,
+      cells: result.cells,
+      metadata: new Map(),
+      config: { density, deadEndFrequency, symmetry, edgeWrapping },
+      createdAt: new Date().toISOString(),
+      modifiedAt: new Date().toISOString(),
+    };
+
+    this.store.setMazeState(mazeState);
+    this.history.clear();
+    this.store.setDirty(false);
+    this.store.setPathValid(config.type === 'classic' ? true : null);
+
+    return { success: true };
+  }
+
+  regenerate() {
+    if (!this.store.maze) {
+      return { success: false, error: 'No maze to regenerate. Generate one first.' };
+    }
+
+    const maze = this.store.maze;
+    const config = {
+      type: maze.type,
+      subType: maze.subType,
+      rows: maze.rows,
+      columns: maze.columns,
+      seed: null,
+      density: maze.config.density,
+      deadEndFrequency: maze.config.deadEndFrequency,
+      symmetry: maze.config.symmetry,
+      edgeWrapping: maze.config.edgeWrapping,
+    };
+
+    return this.generate(config);
+  }
+}
+
+// ============================================================
+// controllers/edit-controller.js
+// ============================================================
+
+class EditController {
+  constructor(store, history, renderer) {
+    this.store = store;
+    this.history = history;
+    this.renderer = renderer;
+
+    this._isDragging = false;
+    this._dragChanges = [];
+    this._dragVisited = new Set();
+    this._lineStart = null;
+    this._rectStart = null;
+    this._validationTimeout = null;
+  }
+
+  handlePointerDown(row, col) {
+    const maze = this.store.maze;
+    if (!maze) return;
+
+    const tool = this.store.editor.activeTool;
+    const idx = rowColToIndex(row, col, maze.columns);
+
+    switch (tool) {
+      case 'pencil':
+        this._isDragging = true;
+        this._dragChanges = [];
+        this._dragVisited = new Set();
+        this._applyPencil(idx);
+        break;
+
+      case 'eraser':
+        this._isDragging = true;
+        this._dragChanges = [];
+        this._dragVisited = new Set();
+        this._applyEraser(idx);
+        break;
+
+      case 'rectangle':
+        this._rectStart = { row, col };
+        break;
+
+      case 'line':
+        this._lineStart = { row, col };
+        break;
+
+      case 'floodFill':
+        this._applyFloodFill(idx);
+        break;
+
+      case 'startPoint':
+        this._relocatePoint(idx, START);
+        break;
+
+      case 'endPoint':
+        this._relocatePoint(idx, END);
+        break;
+    }
+  }
+
+  handlePointerMove(row, col) {
+    const maze = this.store.maze;
+    if (!maze) return;
+
+    const idx = rowColToIndex(row, col, maze.columns);
+    const tool = this.store.editor.activeTool;
+
+    if (this._isDragging) {
+      if (tool === 'pencil') {
+        this._applyPencil(idx);
+      } else if (tool === 'eraser') {
+        this._applyEraser(idx);
+      }
+    }
+  }
+
+  handlePointerUp(row, col) {
+    const maze = this.store.maze;
+    if (!maze) return;
+
+    const tool = this.store.editor.activeTool;
+
+    if (this._isDragging) {
+      this._isDragging = false;
+      if (this._dragChanges.length > 0) {
+        this._commitOperation(this._dragChanges);
+        this._dragChanges = [];
+        this._dragVisited.clear();
+      }
+    } else if (tool === 'rectangle' && this._rectStart) {
+      this._applyRectangle(this._rectStart, { row, col });
+      this._rectStart = null;
+    } else if (tool === 'line' && this._lineStart) {
+      this._applyLine(this._lineStart, { row, col });
+      this._lineStart = null;
+    }
+
+    this._scheduleValidation();
+  }
+
+  _applyPencil(idx) {
+    if (this._dragVisited.has(idx)) return;
+    this._dragVisited.add(idx);
+
+    const maze = this.store.maze;
+    const currentValue = maze.cells[idx];
+
+    if (currentValue === START || currentValue === END) return;
+
+    const targetValue = this.store.editor.paintMode === 'wall' ? WALL : PATHWAY;
+    if (currentValue === targetValue) return;
+
+    const change = { index: idx, oldValue: currentValue, newValue: targetValue };
+    this._dragChanges.push(change);
+    this.store.updateCells([change]);
+  }
+
+  _applyEraser(idx) {
+    if (this._dragVisited.has(idx)) return;
+    this._dragVisited.add(idx);
+
+    const maze = this.store.maze;
+    const currentValue = maze.cells[idx];
+
+    if (currentValue === START || currentValue === END) return;
+    if (currentValue === PATHWAY) return;
+
+    const change = { index: idx, oldValue: currentValue, newValue: PATHWAY };
+    this._dragChanges.push(change);
+    this.store.updateCells([change]);
+  }
+
+  _applyFloodFill(startIdx) {
+    const maze = this.store.maze;
+    const originalValue = maze.cells[startIdx];
+
+    if (originalValue === START || originalValue === END) return;
+
+    const targetValue = this.store.editor.paintMode === 'wall' ? WALL : PATHWAY;
+    if (originalValue === targetValue) return;
+
+    const changes = [];
+    const visited = new Uint8Array(maze.rows * maze.columns);
+    const stack = [startIdx];
+
+    while (stack.length > 0) {
+      const idx = stack.pop();
+      if (visited[idx]) continue;
+      if (maze.cells[idx] !== originalValue) continue;
+      if (maze.cells[idx] === START || maze.cells[idx] === END) continue;
+
+      visited[idx] = 1;
+      changes.push({ index: idx, oldValue: originalValue, newValue: targetValue });
+
+      const row = Math.floor(idx / maze.columns);
+      const col = idx % maze.columns;
+
+      if (row > 0) stack.push(idx - maze.columns);
+      if (row < maze.rows - 1) stack.push(idx + maze.columns);
+      if (col > 0) stack.push(idx - 1);
+      if (col < maze.columns - 1) stack.push(idx + 1);
+    }
+
+    if (changes.length > 0) {
+      this.store.updateCells(changes);
+      this._commitOperation(changes);
+    }
+  }
+
+  _applyRectangle(start, end) {
+    const maze = this.store.maze;
+    const targetValue = this.store.editor.paintMode === 'wall' ? WALL : PATHWAY;
+
+    const minR = Math.min(start.row, end.row);
+    const maxR = Math.max(start.row, end.row);
+    const minC = Math.min(start.col, end.col);
+    const maxC = Math.max(start.col, end.col);
+
+    const changes = [];
+    for (let r = minR; r <= maxR; r++) {
+      for (let c = minC; c <= maxC; c++) {
+        const idx = rowColToIndex(r, c, maze.columns);
+        const currentValue = maze.cells[idx];
+        if (currentValue === START || currentValue === END) continue;
+        if (currentValue === targetValue) continue;
+        changes.push({ index: idx, oldValue: currentValue, newValue: targetValue });
+      }
+    }
+
+    if (changes.length > 0) {
+      this.store.updateCells(changes);
+      this._commitOperation(changes);
+    }
+  }
+
+  _applyLine(start, end) {
+    const maze = this.store.maze;
+    const targetValue = this.store.editor.paintMode === 'wall' ? WALL : PATHWAY;
+
+    const cells = this._bresenham(start.row, start.col, end.row, end.col);
+    const changes = [];
+
+    for (const { row, col } of cells) {
+      const idx = rowColToIndex(row, col, maze.columns);
+      const currentValue = maze.cells[idx];
+      if (currentValue === START || currentValue === END) continue;
+      if (currentValue === targetValue) continue;
+      changes.push({ index: idx, oldValue: currentValue, newValue: targetValue });
+    }
+
+    if (changes.length > 0) {
+      this.store.updateCells(changes);
+      this._commitOperation(changes);
+    }
+  }
+
+  _bresenham(r0, c0, r1, c1) {
+    const points = [];
+    let dr = Math.abs(r1 - r0);
+    let dc = Math.abs(c1 - c0);
+    let sr = r0 < r1 ? 1 : -1;
+    let sc = c0 < c1 ? 1 : -1;
+    let err = dr - dc;
+
+    let r = r0, c = c0;
+    while (true) {
+      points.push({ row: r, col: c });
+      if (r === r1 && c === c1) break;
+      const e2 = 2 * err;
+      if (e2 > -dc) { err -= dc; r += sr; }
+      if (e2 < dr) { err += dr; c += sc; }
+    }
+    return points;
+  }
+
+  _relocatePoint(targetIdx, pointType) {
+    const maze = this.store.maze;
+    const targetValue = maze.cells[targetIdx];
+
+    if (targetValue === WALL) return;
+
+    const otherType = pointType === START ? END : START;
+    if (targetValue === otherType) return;
+    if (targetValue === pointType) return;
+
+    const currentIdx = findCellByValue(maze.cells, pointType);
+    if (currentIdx === -1) return;
+
+    const changes = [
+      { index: currentIdx, oldValue: pointType, newValue: PATHWAY },
+      { index: targetIdx, oldValue: targetValue, newValue: pointType },
+    ];
+
+    this.store.updateCells(changes);
+    this._commitOperation(changes);
+    this._scheduleValidation();
+  }
+
+  _commitOperation(changes) {
+    const operation = {
+      type: changes.length === 1 ? 'single' : 'bulk',
+      changes: [...changes],
+      timestamp: Date.now(),
+    };
+    this.history.push(operation);
+    this.store.setDirty(true);
+  }
+
+  undo() {
+    const operation = this.history.undo();
+    if (!operation) return;
+    this.store.revertCells(operation.changes);
+    this._scheduleValidation();
+  }
+
+  redo() {
+    const operation = this.history.redo();
+    if (!operation) return;
+    this.store.updateCells(operation.changes);
+    this._scheduleValidation();
+  }
+
+  _scheduleValidation() {
+    if (this._validationTimeout) {
+      clearTimeout(this._validationTimeout);
+    }
+    this._validationTimeout = setTimeout(() => {
+      this._validateSolvability();
+      this._validationTimeout = null;
+    }, 200);
+  }
+
+  _validateSolvability() {
+    const maze = this.store.maze;
+    if (!maze || maze.type !== 'classic') return;
+
+    const startIdx = findCellByValue(maze.cells, START);
+    const endIdx = findCellByValue(maze.cells, END);
+
+    if (startIdx === -1 || endIdx === -1) {
+      this.store.setPathValid(false);
+      return;
+    }
+
+    const path = findPath(maze.cells, maze.columns, maze.rows, startIdx, endIdx, false);
+    this.store.setPathValid(path !== null);
+  }
+}
+
+// ============================================================
+// controllers/file-controller.js
+// ============================================================
+
+class FileController {
+  constructor(store, history, autosave) {
+    this.store = store;
+    this.history = history;
+    this.autosave = autosave;
+  }
+
+  async saveProject() {
+    const maze = this.store.maze;
+    if (!maze) return;
+
+    const historyStack = this.history.getSerializableStack(200);
+    const content = serializeProject(maze, historyStack);
+    const filename = getProjectFilename(maze);
+
+    const result = await saveFile(content, filename, FILE_TYPES.project);
+    if (result.success) {
+      this.store.setDirty(false);
+      this.autosave.clearRecoveryData();
+    } else if (result.error !== 'cancelled') {
+      await showError('Save Failed', result.error);
+    }
+  }
+
+  async saveProjectAs() {
+    return this.saveProject();
+  }
+
+  async loadProject() {
+    if (this.store.editor.isDirty) {
+      const choice = await showConfirmation(
+        'You have unsaved changes. What would you like to do?'
+      );
+      if (choice === 'cancel') return;
+      if (choice === 'save') await this.saveProject();
+    }
+
+    const result = await openFile(FILE_TYPES.project);
+    if (!result.success) {
+      if (result.error !== 'cancelled') {
+        await showError('Open Failed', result.error);
+      }
+      return;
+    }
+
+    const parsed = deserializeProject(result.content);
+    if (!parsed.success) {
+      await showError('Invalid Project File', parsed.error);
+      return;
+    }
+
+    if (parsed.warning) {
+      console.warn(parsed.warning);
+    }
+
+    this.store.setMazeState(parsed.data.maze);
+    this.history.setStack(
+      parsed.data.editor.undoStack,
+      parsed.data.editor.redoStack
+    );
+    this.store.setDirty(false);
+    this.autosave.clearRecoveryData();
+  }
+
+  async exportASCII() {
+    const maze = this.store.maze;
+    if (!maze) return;
+
+    // Use object-aware export for Pac-Man mazes with placed objects
+    const ascii = (maze.type === 'pacman' && gameObjects.size > 0)
+      ? generateASCIIWithObjects(maze)
+      : generateASCII(maze);
+
+    const confirmed = await showExportPreview(ascii);
+    if (!confirmed) return;
+
+    const filename = getSuggestedFilename(maze);
+    const result = await saveFile(ascii, filename, FILE_TYPES.ascii);
+
+    if (!result.success && result.error !== 'cancelled') {
+      await showError('Export Failed', result.error);
+    }
+  }
+
+  async importASCII() {
+    if (this.store.editor.isDirty) {
+      const choice = await showConfirmation(
+        'You have unsaved changes. Importing will replace the current maze.'
+      );
+      if (choice === 'cancel') return;
+      if (choice === 'save') await this.saveProject();
+    }
+
+    const result = await openFile(FILE_TYPES.ascii);
+    if (!result.success) {
+      if (result.error !== 'cancelled') {
+        await showError('Import Failed', result.error);
+      }
+      return;
+    }
+
+    const parsed = parseASCII(result.content);
+    if (!parsed.success) {
+      const errorMsg = parsed.errors.map((e) => e.detail).join('\n');
+      await showError('Import Validation Failed', errorMsg);
+      return;
+    }
+
+    let mazeType = parsed.maze.type;
+    if (parsed.needsTypePrompt || !mazeType) {
+      mazeType = await showTypeSelection();
+      if (!mazeType) return;
+    }
+
+    const mazeState = {
+      type: mazeType,
+      subType: mazeType === 'classic' ? 'imperfect' : null,
+      rows: parsed.maze.rows,
+      columns: parsed.maze.columns,
+      seed: parsed.maze.seed || 0,
+      cells: parsed.maze.cells,
+      metadata: new Map(),
+      config: { density: 0.5, deadEndFrequency: 0.3, symmetry: 'none', edgeWrapping: false },
+      createdAt: new Date().toISOString(),
+      modifiedAt: new Date().toISOString(),
+    };
+
+    this.store.setMazeState(mazeState);
+    this.history.clear();
+    this.store.setDirty(false);
+
+    if (parsed.unsolvable) {
+      this.store.setPathValid(false);
+    }
+  }
+}
+
+// ============================================================
+// controllers/app-controller.js
+// ============================================================
+
+class AppController {
+  constructor() {
+    // Core state
+    this.store = new StateStore();
+    this.history = new HistoryManager();
+
+    // Canvas renderer
+    const canvas = document.getElementById('maze-canvas');
+    this.renderer = new CanvasRenderer(canvas, this.store);
+
+    // Minimap
+    const minimapCanvas = document.getElementById('minimap-canvas');
+    this.minimap = new MinimapRenderer(minimapCanvas, this.store, this.renderer);
+
+    // Overlays
+    this.overlays = new OverlayRenderer(canvas, this.store);
+    this.toolPreview = new ToolPreviewRenderer(canvas, this.store);
+
+    // Controllers
+    this.generation = new GenerationController(this.store, this.history);
+    this.edit = new EditController(this.store, this.history, this.renderer);
+    this.autosave = new AutosaveManager(this.store);
+    this.file = new FileController(this.store, this.history, this.autosave);
+
+    // UI components
+    this.configPanel = new ConfigPanel(this.store);
+    this.toolbar = new Toolbar(this.store, this.history);
+    this.statusBar = new StatusBar(this.store);
+
+    // Initialize
+    this._bindCanvasEvents(canvas);
+    this._bindUIEvents();
+    this._bindStateListeners();
+    initKeyboard({
+      edit: this.edit,
+      generation: this.generation,
+      file: this.file,
+      store: this.store,
+      renderer: this.renderer,
+    });
+
+    // Wire overlay rendering after main render
+    this.renderer.setOverlayCallback(() => {
+      renderGameObjects(this.renderer.ctx, this.store);
+      this.overlays.render();
+      this.toolPreview.render();
+    });
+
+    // Start autosave
+    this.autosave.start();
+
+    // Check for recovery
+    this._checkRecovery();
+
+    // Unsaved changes warning
+    window.addEventListener('beforeunload', (e) => {
+      if (this.store.editor.isDirty) {
+        e.preventDefault();
+        e.returnValue = '';
+      }
+    });
+  }
+
+  _bindCanvasEvents(canvas) {
+    let isPointerDown = false;
+
+    canvas.addEventListener('pointerdown', (e) => {
+      const rect = canvas.getBoundingClientRect();
+      const x = e.clientX - rect.left;
+      const y = e.clientY - rect.top;
+      const cell = this.renderer.cellAtPixel(x, y);
+      if (!cell) return;
+
+      // If an object tool is active, place object instead of painting
+      if (activeObjectTool) {
+        const idx = cell.row * this.store.maze.columns + cell.col;
+        placeGameObject(idx, activeObjectTool, this.store);
+        return;
+      }
+
+      isPointerDown = true;
+      canvas.setPointerCapture(e.pointerId);
+      this.edit.handlePointerDown(cell.row, cell.col);
+    });
+
+    canvas.addEventListener('pointermove', (e) => {
+      const rect = canvas.getBoundingClientRect();
+      const x = e.clientX - rect.left;
+      const y = e.clientY - rect.top;
+      const cell = this.renderer.cellAtPixel(x, y);
+
+      if (cell) {
+        this.store.setCursorCell(cell);
+        document.getElementById('coordinates').textContent = `(${cell.row}, ${cell.col})`;
+      } else {
+        this.store.setCursorCell(null);
+        document.getElementById('coordinates').textContent = '--';
+      }
+
+      if (isPointerDown && cell) {
+        this.edit.handlePointerMove(cell.row, cell.col);
+      }
+    });
+
+    canvas.addEventListener('pointerup', (e) => {
+      if (!isPointerDown) return;
+      isPointerDown = false;
+
+      const rect = canvas.getBoundingClientRect();
+      const x = e.clientX - rect.left;
+      const y = e.clientY - rect.top;
+      const cell = this.renderer.cellAtPixel(x, y);
+      if (cell) {
+        this.edit.handlePointerUp(cell.row, cell.col);
+      }
+    });
+
+    canvas.addEventListener('wheel', (e) => {
+      e.preventDefault();
+      const delta = e.deltaY > 0 ? 0.9 : 1.1;
+      this.renderer.setZoom(this.store.view.zoom * delta);
+    }, { passive: false });
+  }
+
+  _bindUIEvents() {
+    document.getElementById('btn-save').addEventListener('click', () => this.file.saveProject());
+    document.getElementById('btn-load').addEventListener('click', () => this.file.loadProject());
+    document.getElementById('btn-export').addEventListener('click', () => this.file.exportASCII());
+    document.getElementById('btn-import').addEventListener('click', () => this.file.importASCII());
+
+    document.querySelectorAll('input[name="maze-type"]').forEach((radio) => {
+      radio.addEventListener('change', () => this._updateConfigVisibility());
+    });
+    document.querySelectorAll('input[name="classic-subtype"]').forEach((radio) => {
+      radio.addEventListener('change', () => this._updateConfigVisibility());
+    });
+
+    document.getElementById('btn-generate').addEventListener('click', () => this._handleGenerate());
+    document.getElementById('btn-regenerate').addEventListener('click', () => this._handleRegenerate());
+
+    document.getElementById('btn-copy-seed').addEventListener('click', () => {
+      const seed = this.store.maze?.seed;
+      if (seed != null) {
+        navigator.clipboard.writeText(String(seed));
+      }
+    });
+
+    document.getElementById('slider-density').addEventListener('input', (e) => {
+      document.getElementById('density-value').textContent = (e.target.value / 100).toFixed(1);
+    });
+    document.getElementById('slider-dead-ends').addEventListener('input', (e) => {
+      document.getElementById('dead-ends-value').textContent = (e.target.value / 100).toFixed(1);
+    });
+
+    document.querySelectorAll('.tool-btn[data-tool]').forEach((btn) => {
+      btn.addEventListener('click', () => {
+        this.store.setEditorTool(btn.dataset.tool);
+      });
+    });
+
+    document.getElementById('btn-paint-mode').addEventListener('click', () => {
+      this.store.togglePaintMode();
+    });
+
+    document.getElementById('btn-undo').addEventListener('click', () => this.edit.undo());
+    document.getElementById('btn-redo').addEventListener('click', () => this.edit.redo());
+
+    document.getElementById('check-path').addEventListener('change', () => this.store.togglePathOverlay());
+    document.getElementById('check-unreachable').addEventListener('change', () => this.store.toggleUnreachable());
+    document.getElementById('check-grid').addEventListener('change', () => this.store.toggleGridLines());
+
+    // Object placement tools
+    document.querySelectorAll('.obj-btn').forEach((btn) => {
+      btn.addEventListener('click', () => {
+        const objType = btn.dataset.obj;
+        // Toggle active state
+        document.querySelectorAll('.obj-btn').forEach(b => b.classList.remove('active'));
+        if (activeObjectTool === objType) {
+          activeObjectTool = null;
+        } else {
+          activeObjectTool = objType;
+          btn.classList.add('active');
+        }
+      });
+    });
+  }
+
+  _bindStateListeners() {
+    this.store.subscribe('maze-replaced', (maze) => {
+      document.getElementById('input-seed').value = maze.seed;
+      document.getElementById('minimap-canvas').hidden = !(maze.rows > 30 || maze.columns > 30);
+      document.getElementById('object-tools').hidden = maze.type !== 'pacman';
+      gameObjects.clear();
+      activeObjectTool = null;
+      document.querySelectorAll('.obj-btn').forEach(b => b.classList.remove('active'));
+    });
+    this.store.subscribe('objects-changed', () => this.renderer.render());
+  }
+
+  _updateUndoRedoButtons() {
+    document.getElementById('btn-undo').disabled = !this.history.canUndo();
+    document.getElementById('btn-redo').disabled = !this.history.canRedo();
+  }
+
+  _updateConfigVisibility() {
+    const type = document.querySelector('input[name="maze-type"]:checked')?.value;
+
+    document.getElementById('classic-sub-options').hidden = type !== 'classic';
+    document.getElementById('section-dead-ends').hidden = !(
+      type === 'classic' &&
+      document.getElementById('subtype-imperfect').checked
+    );
+    document.getElementById('section-symmetry').hidden = type !== 'pacman';
+  }
+
+  _handleGenerate() {
+    const config = this.configPanel.readConfig();
+    const result = this.generation.generate(config);
+
+    if (!result.success) {
+      const errorEl = document.getElementById('dim-error');
+      errorEl.textContent = result.error;
+      errorEl.hidden = false;
+      setTimeout(() => { errorEl.hidden = true; }, 5000);
+    } else {
+      document.getElementById('dim-error').hidden = true;
+    }
+  }
+
+  async _handleRegenerate() {
+    if (this.store.editor.isDirty) {
+      const choice = await showConfirmation(
+        'Regenerating will discard all edits. Continue?',
+        { showSave: false }
+      );
+      if (choice === 'cancel') return;
+    }
+
+    const result = this.generation.regenerate();
+    if (!result.success) {
+      const errorEl = document.getElementById('dim-error');
+      errorEl.textContent = result.error;
+      errorEl.hidden = false;
+    }
+  }
+
+  async _checkRecovery() {
+    if (!this.autosave.hasRecoveryData()) return;
+
+    const restore = await showRecoveryPrompt();
+    if (restore) {
+      const maze = this.autosave.getRecoveryData();
+      if (maze) {
+        this.store.setMazeState(maze);
+        this.store.setDirty(true);
+      }
+    }
+    this.autosave.clearRecoveryData();
+  }
+}
+
+// ============================================================
+// Help System
+// ============================================================
+
+const HELP_CONTENT = {
+  'maze-type': `
+    <h2 class="modal-title">Maze Type</h2>
+    <div class="help-modal-body">
+      <p>Choose the style of maze to generate.</p>
+      <table>
+        <tr><th>Option</th><th>Description</th></tr>
+        <tr><td><strong>Pac-Man</strong></td><td>Open looping pathways with no dead ends. No start or end point. Every path connects back to another path, like an arcade game level.</td></tr>
+        <tr><td><strong>Classic</strong></td><td>A maze with a start point (S) and end point (E). The goal is to navigate from S to E.</td></tr>
+      </table>
+      <p>When you select <strong>Classic</strong>, two sub-options appear:</p>
+      <table>
+        <tr><th>Sub-option</th><th>Description</th></tr>
+        <tr><td><strong>Perfect</strong></td><td>Exactly one solution path exists. No loops, no shortcuts. Every dead end is a true dead end.</td></tr>
+        <tr><td><strong>Imperfect</strong></td><td>Multiple solution paths may exist. Loops and alternate routes are allowed, creating a more open layout.</td></tr>
+      </table>
+    </div>
+    <div class="modal-actions"><button class="primary-btn" id="modal-ok">Got it</button></div>
+  `,
+  'dimensions': `
+    <h2 class="modal-title">Dimensions</h2>
+    <div class="help-modal-body">
+      <table>
+        <tr><th>Field</th><th>Description</th></tr>
+        <tr><td><strong>Rows</strong></td><td>Number of rows in the grid (5–100).</td></tr>
+        <tr><td><strong>Cols</strong></td><td>Number of columns in the grid (5–100).</td></tr>
+      </table>
+      <p>Larger mazes take slightly longer to generate. For Pac-Man mazes, <strong>odd dimensions</strong> (15, 21, 31) tend to produce better results.</p>
+    </div>
+    <div class="modal-actions"><button class="primary-btn" id="modal-ok">Got it</button></div>
+  `,
+  'seed': `
+    <h2 class="modal-title">Seed</h2>
+    <div class="help-modal-body">
+      <table>
+        <tr><th>Field</th><th>Description</th></tr>
+        <tr><td><strong>Seed input</strong></td><td>Optional. Enter a number to reproduce a specific maze. Leave blank for a random maze each time.</td></tr>
+        <tr><td><strong>Copy button</strong></td><td>Copies the current seed to your clipboard so you can share or save it.</td></tr>
+      </table>
+      <p>The same seed + same settings = the same maze every time. Useful for collaboration and version control.</p>
+    </div>
+    <div class="modal-actions"><button class="primary-btn" id="modal-ok">Got it</button></div>
+  `,
+  'density': `
+    <h2 class="modal-title">Density</h2>
+    <div class="help-modal-body">
+      <p>Controls how open or tight the maze feels.</p>
+      <table>
+        <tr><th>Value</th><th>Effect</th></tr>
+        <tr><td><strong>Low (0.0)</strong></td><td>Long corridors, fewer branches. More claustrophobic.</td></tr>
+        <tr><td><strong>High (1.0)</strong></td><td>More branching, shorter corridors. More open.</td></tr>
+      </table>
+      <p>For <strong>Imperfect</strong> mazes, higher density also removes more walls, creating more alternate paths.</p>
+    </div>
+    <div class="modal-actions"><button class="primary-btn" id="modal-ok">Got it</button></div>
+  `,
+  'dead-ends': `
+    <h2 class="modal-title">Dead Ends</h2>
+    <div class="help-modal-body">
+      <p>Controls how many dead ends remain in an imperfect maze.</p>
+      <table>
+        <tr><th>Value</th><th>Effect</th></tr>
+        <tr><td><strong>0.0</strong></td><td>Almost no dead ends. Very open, many loops.</td></tr>
+        <tr><td><strong>1.0</strong></td><td>Keeps all dead ends from the initial generation.</td></tr>
+      </table>
+      <p>Only available when Classic → Imperfect is selected.</p>
+    </div>
+    <div class="modal-actions"><button class="primary-btn" id="modal-ok">Got it</button></div>
+  `,
+  'symmetry': `
+    <h2 class="modal-title">Symmetry &amp; Edge Wrapping</h2>
+    <div class="help-modal-body">
+      <p><strong>Symmetry</strong> (Pac-Man only):</p>
+      <table>
+        <tr><th>Option</th><th>Description</th></tr>
+        <tr><td><strong>None</strong></td><td>No symmetry. Fully random layout.</td></tr>
+        <tr><td><strong>Horizontal</strong></td><td>Left half is mirrored to the right.</td></tr>
+        <tr><td><strong>Vertical</strong></td><td>Top half is mirrored to the bottom.</td></tr>
+        <tr><td><strong>Both</strong></td><td>Top-left quadrant is mirrored on both axes. Requires at least 7×7 grid.</td></tr>
+      </table>
+      <p><strong>Edge Wrapping:</strong> When checked, the left edge connects to the right edge and the top connects to the bottom — like the tunnels in the original Pac-Man.</p>
+    </div>
+    <div class="modal-actions"><button class="primary-btn" id="modal-ok">Got it</button></div>
+  `,
+  'file-operations': `
+    <h2 class="modal-title">File Operations</h2>
+    <div class="help-modal-body">
+      <table>
+        <tr><th>Button</th><th>Description</th></tr>
+        <tr><td><strong>Save</strong></td><td>Saves the full project (maze + edit history) as a JSON file. You can reopen it later to continue editing.</td></tr>
+        <tr><td><strong>Load</strong></td><td>Opens a previously saved project file.</td></tr>
+        <tr><td><strong>Export</strong></td><td>Shows an ASCII text preview of the maze, then saves it as a .txt file. This is the developer-friendly output.</td></tr>
+        <tr><td><strong>Import</strong></td><td>Opens an ASCII .txt maze file and loads it into the editor for modification.</td></tr>
+      </table>
+      <p><strong>Export format:</strong> # = wall, (space) = pathway, S = start, E = end. Header lines starting with // contain metadata.</p>
+    </div>
+    <div class="modal-actions"><button class="primary-btn" id="modal-ok">Got it</button></div>
+  `,
+  'toolbar': `
+    <h2 class="modal-title">Editing Tools</h2>
+    <div class="help-modal-body">
+      <table>
+        <tr><th>Tool</th><th>Key</th><th>Description</th></tr>
+        <tr><td>✏️ Pencil</td><td>1</td><td>Click to toggle a cell. Drag to paint multiple cells.</td></tr>
+        <tr><td>🧹 Eraser</td><td>2</td><td>Click or drag to convert cells to pathway.</td></tr>
+        <tr><td>▭ Rectangle</td><td>3</td><td>Click and drag to fill a rectangular area.</td></tr>
+        <tr><td>╱ Line</td><td>4</td><td>Click start point, then click end point to draw a straight line.</td></tr>
+        <tr><td>🪣 Flood Fill</td><td>5</td><td>Click a cell to fill all connected cells of the same type.</td></tr>
+      </table>
+      <p><strong>Wall/Path toggle (X):</strong> Switches whether the pencil draws walls or pathways.</p>
+      <p><strong>Undo/Redo:</strong> Cmd+Z / Cmd+Shift+Z (Mac) or Ctrl+Z / Ctrl+Shift+Z (Windows). Up to 1000 undo steps.</p>
+      <p><strong>Checkboxes:</strong></p>
+      <table>
+        <tr><th>Option</th><th>Description</th></tr>
+        <tr><td><strong>Path</strong></td><td>Highlights the shortest solution path from S to E (Classic only).</td></tr>
+        <tr><td><strong>Unreachable</strong></td><td>Highlights pathway cells disconnected from the main maze.</td></tr>
+        <tr><td><strong>Grid</strong></td><td>Shows/hides grid lines between cells.</td></tr>
+      </table>
+    </div>
+    <div class="modal-actions"><button class="primary-btn" id="modal-ok">Got it</button></div>
+  `,
+  'objects': `
+    <h2 class="modal-title">Place Objects</h2>
+    <div class="help-modal-body">
+      <p>Place game elements on pathway cells. These appear when a Pac-Man maze is generated. Click a tool, then click cells to place objects.</p>
+      <table>
+        <tr><th>Tool</th><th>Export Char</th><th>Description</th></tr>
+        <tr><td>● Collectible</td><td>.</td><td>A pickup item placed on floor tiles. In export, pathways with no object default to this.</td></tr>
+        <tr><td>◆ Power-Up</td><td>B</td><td>A special power-up item (e.g., bell, energizer).</td></tr>
+        <tr><td>🚶 Player Spawn</td><td>K</td><td>Where the player starts. Typically one per maze.</td></tr>
+        <tr><td>👻 Enemy Spawn</td><td>P</td><td>Where enemies spawn. Place inside a pen area.</td></tr>
+        <tr><td>🌀 Portal</td><td>=</td><td>A teleporter. Place in pairs on opposite edges for tunnels.</td></tr>
+        <tr><td>🚪 Gate</td><td>D</td><td>A one-way gate (e.g., pen entrance that enemies exit through).</td></tr>
+        <tr><td>⬜ Pen Floor</td><td>(space)</td><td>Interior floor of an enemy pen/house area.</td></tr>
+        <tr><td>❌ Remove</td><td>—</td><td>Click to remove a placed object, reverting the cell to a plain pathway.</td></tr>
+      </table>
+      <p><strong>Export behavior:</strong> When you export a Pac-Man maze with objects placed, pathways without objects become <code>.</code> (collectible) by default. Objects export as their character shown above.</p>
+    </div>
+    <div class="modal-actions"><button class="primary-btn" id="modal-ok">Got it</button></div>
+  `
+};
+
+// Bind help buttons
+document.querySelectorAll('.help-btn').forEach(btn => {
+  btn.addEventListener('click', (e) => {
+    e.stopPropagation();
+    const key = btn.dataset.help;
+    const content = HELP_CONTENT[key];
+    if (content) {
+      showModal(content, {});
+      _content().querySelector('#modal-ok').addEventListener('click', () => closeModal('ok'));
+    }
+  });
+});
+
+// ============================================================
+// Game Objects System
+// ============================================================
+
+/**
+ * Object types that can be placed on pathway cells.
+ * Each has a character for export and a render style.
+ */
+const GAME_OBJECTS = {
+  'collectible': { char: '.', label: 'Collectible', color: '#ECC94B', shape: 'dot' },
+  'powerup':     { char: 'B', label: 'Power-Up', color: '#9F7AEA', shape: 'diamond' },
+  'player-spawn':{ char: 'K', label: 'Player Spawn', color: '#38A169', shape: 'triangle' },
+  'enemy-spawn': { char: 'P', label: 'Enemy Spawn', color: '#E53E3E', shape: 'square' },
+  'portal':      { char: '=', label: 'Portal', color: '#4299E1', shape: 'ring' },
+  'gate':        { char: 'D', label: 'Gate', color: '#ED8936', shape: 'hline' },
+  'pen':         { char: ' ', label: 'Pen Floor', color: '#4A5568', shape: 'fill' },
+};
+
+/**
+ * Object placement state — stored separately from the cell grid.
+ * Key: cell index, Value: object type string
+ */
+let gameObjects = new Map();
+let activeObjectTool = null;
+
+/**
+ * Place or remove a game object at a cell index.
+ */
+function placeGameObject(idx, objType, store) {
+  if (!store.maze) return;
+  // Only place on pathway cells (value 1)
+  if (store.maze.cells[idx] !== PATHWAY && objType !== 'clear-obj') return;
+
+  if (objType === 'clear-obj') {
+    gameObjects.delete(idx);
+  } else {
+    gameObjects.set(idx, objType);
+  }
+
+  // Trigger re-render
+  store.emit('objects-changed', { idx, objType });
+}
+
+/**
+ * Render game objects on the canvas.
+ */
+function renderGameObjects(ctx, store) {
+  const maze = store.maze;
+  if (!maze || gameObjects.size === 0) return;
+
+  const view = store.view;
+  const cellSize = view.cellSize;
+  const offsetX = view.panX;
+  const offsetY = view.panY;
+
+  ctx.save();
+  for (const [idx, objType] of gameObjects) {
+    const obj = GAME_OBJECTS[objType];
+    if (!obj) continue;
+
+    const row = Math.floor(idx / maze.columns);
+    const col = idx % maze.columns;
+    const x = offsetX + col * cellSize;
+    const y = offsetY + row * cellSize;
+    const cx = x + cellSize / 2;
+    const cy = y + cellSize / 2;
+    const r = cellSize * 0.3;
+
+    ctx.fillStyle = obj.color;
+    ctx.strokeStyle = obj.color;
+    ctx.lineWidth = 2;
+
+    switch (obj.shape) {
+      case 'dot':
+        ctx.beginPath();
+        ctx.arc(cx, cy, r * 0.4, 0, Math.PI * 2);
+        ctx.fill();
+        break;
+      case 'diamond':
+        ctx.beginPath();
+        ctx.moveTo(cx, cy - r);
+        ctx.lineTo(cx + r, cy);
+        ctx.lineTo(cx, cy + r);
+        ctx.lineTo(cx - r, cy);
+        ctx.closePath();
+        ctx.fill();
+        break;
+      case 'triangle':
+        ctx.beginPath();
+        ctx.moveTo(cx, cy - r);
+        ctx.lineTo(cx + r, cy + r);
+        ctx.lineTo(cx - r, cy + r);
+        ctx.closePath();
+        ctx.fill();
+        break;
+      case 'square':
+        ctx.fillRect(cx - r * 0.7, cy - r * 0.7, r * 1.4, r * 1.4);
+        break;
+      case 'ring':
+        ctx.beginPath();
+        ctx.arc(cx, cy, r, 0, Math.PI * 2);
+        ctx.stroke();
+        break;
+      case 'hline':
+        ctx.fillRect(x + 2, cy - 2, cellSize - 4, 4);
+        break;
+      case 'fill':
+        ctx.globalAlpha = 0.3;
+        ctx.fillRect(x, y, cellSize, cellSize);
+        ctx.globalAlpha = 1;
+        break;
+    }
+  }
+  ctx.restore();
+}
+
+/**
+ * Generate ASCII export with game objects overlaid.
+ * Objects replace the pathway character at their position.
+ */
+function generateASCIIWithObjects(maze) {
+  const header = [
+    `// Type: ${maze.type}`,
+    `// SubType: ${maze.subType || 'n/a'}`,
+    `// Dimensions: ${maze.rows}x${maze.columns}`,
+    `// Seed: ${maze.seed}`,
+    `// Generated: ${maze.createdAt}`,
+    `// Format: v1`,
+  ].join('\n');
+
+  const baseCharMap = { 0: '#', 1: '.', 2: 'S', 3: 'E' };
+  // For Pac-Man with objects, pathways default to '.' (collectible)
+  // unless overridden by a placed object
+
+  let mazeData = '';
+  for (let r = 0; r < maze.rows; r++) {
+    for (let c = 0; c < maze.columns; c++) {
+      const idx = r * maze.columns + c;
+      const cellValue = maze.cells[idx];
+
+      // Check for game object at this position
+      if (gameObjects.has(idx)) {
+        const objType = gameObjects.get(idx);
+        const obj = GAME_OBJECTS[objType];
+        mazeData += obj ? obj.char : baseCharMap[cellValue];
+      } else if (maze.type === 'pacman' && cellValue === PATHWAY) {
+        // Default pathway in Pac-Man mode = collectible
+        mazeData += '.';
+      } else {
+        mazeData += baseCharMap[cellValue] || '#';
+      }
+    }
+    mazeData += '\n';
+  }
+
+  return header + '\n' + mazeData;
+}
+
+// ============================================================
+// app.js - Entry Point
+// ============================================================
+
+let app;
+
+function init() {
+  app = new AppController();
+}
+
+if (document.readyState === 'loading') {
+  document.addEventListener('DOMContentLoaded', init);
+} else {
+  init();
+}
+
+})(); // End IIFE
+  </script>
+</body>
+</html>
