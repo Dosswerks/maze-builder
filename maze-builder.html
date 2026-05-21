@@ -1501,11 +1501,11 @@ function generatePacManMaze(rows, columns, config, rng) {
   }
 
   if (edgeWrapping) {
-    _applyEdgeWrapping(cells, rows, columns, rng);
+    var _wrappedCells = _applyEdgeWrapping(cells, rows, columns, rng);
   }
 
   _eliminateDeadEnds(cells, rows, columns, edgeWrapping, rng);
-  _repair2x2Rooms(cells, rows, columns, edgeWrapping);
+  _repair2x2Rooms(cells, rows, columns, edgeWrapping, _wrappedCells);
   // Run elimination again after repair may have created new dead ends
   _eliminateDeadEnds(cells, rows, columns, edgeWrapping, rng);
 
@@ -1695,36 +1695,84 @@ function _eliminateDeadEnds(cells, rows, columns, edgeWrapping, rng) {
 }
 
 function _applyEdgeWrapping(cells, rows, columns, rng) {
-  for (let r = 1; r < rows - 1; r += 2) {
+  const wrappedCells = new Set();
+  let horizontalOpened = 0;
+  let verticalOpened = 0;
+
+  // Open horizontal wrap connections (left edge ↔ right edge)
+  for (let r = 1; r < rows - 1; r++) {
     const leftIdx = rowColToIndex(r, 0, columns);
     const rightIdx = rowColToIndex(r, columns - 1, columns);
     const leftInner = rowColToIndex(r, 1, columns);
     const rightInner = rowColToIndex(r, columns - 2, columns);
 
     if (cells[leftInner] !== WALL && cells[rightInner] !== WALL) {
-      if (rng() < 0.3) {
+      if (rng() < 0.5) {
         cells[leftIdx] = PATHWAY;
         cells[rightIdx] = PATHWAY;
+        wrappedCells.add(leftIdx);
+        wrappedCells.add(rightIdx);
+        horizontalOpened++;
       }
     }
   }
 
-  for (let c = 1; c < columns - 1; c += 2) {
+  // Open vertical wrap connections (top edge ↔ bottom edge)
+  for (let c = 1; c < columns - 1; c++) {
     const topIdx = rowColToIndex(0, c, columns);
     const bottomIdx = rowColToIndex(rows - 1, c, columns);
     const topInner = rowColToIndex(1, c, columns);
     const bottomInner = rowColToIndex(rows - 2, c, columns);
 
     if (cells[topInner] !== WALL && cells[bottomInner] !== WALL) {
-      if (rng() < 0.3) {
+      if (rng() < 0.5) {
         cells[topIdx] = PATHWAY;
         cells[bottomIdx] = PATHWAY;
+        wrappedCells.add(topIdx);
+        wrappedCells.add(bottomIdx);
+        verticalOpened++;
       }
     }
   }
+
+  // Guarantee at least one tunnel in each axis
+  if (horizontalOpened === 0) {
+    for (let r = 1; r < rows - 1; r++) {
+      const leftInner = rowColToIndex(r, 1, columns);
+      const rightInner = rowColToIndex(r, columns - 2, columns);
+      if (cells[leftInner] !== WALL && cells[rightInner] !== WALL) {
+        const leftIdx = rowColToIndex(r, 0, columns);
+        const rightIdx = rowColToIndex(r, columns - 1, columns);
+        cells[leftIdx] = PATHWAY;
+        cells[rightIdx] = PATHWAY;
+        wrappedCells.add(leftIdx);
+        wrappedCells.add(rightIdx);
+        break;
+      }
+    }
+  }
+
+  if (verticalOpened === 0) {
+    for (let c = 1; c < columns - 1; c++) {
+      const topInner = rowColToIndex(1, c, columns);
+      const bottomInner = rowColToIndex(rows - 2, c, columns);
+      if (cells[topInner] !== WALL && cells[bottomInner] !== WALL) {
+        const topIdx = rowColToIndex(0, c, columns);
+        const bottomIdx = rowColToIndex(rows - 1, c, columns);
+        cells[topIdx] = PATHWAY;
+        cells[bottomIdx] = PATHWAY;
+        wrappedCells.add(topIdx);
+        wrappedCells.add(bottomIdx);
+        break;
+      }
+    }
+  }
+
+  return wrappedCells;
 }
 
-function _repair2x2Rooms(cells, rows, columns, edgeWrapping) {
+function _repair2x2Rooms(cells, rows, columns, edgeWrapping, protectedCells) {
+  const protected_ = protectedCells || new Set();
   let repaired = true;
   let iterations = 0;
 
@@ -1741,7 +1789,10 @@ function _repair2x2Rooms(cells, rows, columns, edgeWrapping) {
 
         if (cells[tl] !== WALL && cells[tr] !== WALL &&
             cells[bl] !== WALL && cells[br] !== WALL) {
-          const candidates = [tl, tr, bl, br];
+          // Filter out protected cells from candidates
+          const candidates = [tl, tr, bl, br].filter(idx => !protected_.has(idx));
+          if (candidates.length === 0) continue;
+
           let bestIdx = -1;
           let bestCount = -1;
 
