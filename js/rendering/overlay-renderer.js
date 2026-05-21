@@ -196,7 +196,7 @@ export class OverlayRenderer {
 
     if (anchorIdx === undefined || anchorIdx === -1) return;
 
-    const edgeWrapping = maze.config?.edgeWrapping || false;
+    const edgeWrapping = maze.config?.edgeWrapping || 'none';
     const { connected } = floodFill(maze.cells, maze.columns, maze.rows, anchorIdx, edgeWrapping);
 
     for (let i = 0; i < maze.cells.length; i++) {
