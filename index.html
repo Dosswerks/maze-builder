@@ -1,0 +1,177 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Maze Builder</title>
+  <link rel="stylesheet" href="css/style.css">
+  <link rel="stylesheet" href="css/components.css">
+</head>
+<body>
+  <div class="app-layout">
+    <!-- Header Bar -->
+    <header class="header-bar">
+      <div class="header-left">
+        <h1 class="app-title">Maze Builder</h1>
+      </div>
+      <div class="header-right">
+        <button id="btn-save" class="header-btn" aria-label="Save project (Ctrl+S)" title="Save project (Ctrl+S)">Save</button>
+        <button id="btn-load" class="header-btn" aria-label="Open project (Ctrl+O)" title="Open project (Ctrl+O)">Load</button>
+        <button id="btn-export" class="header-btn" aria-label="Export as ASCII text" title="Export as ASCII text">Export</button>
+        <button id="btn-import" class="header-btn" aria-label="Import ASCII maze file" title="Import ASCII maze file">Import</button>
+      </div>
+    </header>
+
+    <!-- Main Content Area -->
+    <div class="main-content">
+      <!-- Config Panel (Left) -->
+      <aside class="config-panel" id="config-panel">
+        <section class="config-section">
+          <h2 class="config-heading">Maze Type</h2>
+          <div class="radio-group" role="radiogroup" aria-label="Maze type selection">
+            <label class="radio-label">
+              <input type="radio" name="maze-type" value="pacman" id="type-pacman">
+              Pac-Man
+            </label>
+            <label class="radio-label">
+              <input type="radio" name="maze-type" value="classic" id="type-classic">
+              Classic
+            </label>
+          </div>
+          <div class="sub-options" id="classic-sub-options" hidden>
+            <label class="radio-label indent">
+              <input type="radio" name="classic-subtype" value="perfect" id="subtype-perfect">
+              Perfect
+            </label>
+            <label class="radio-label indent">
+              <input type="radio" name="classic-subtype" value="imperfect" id="subtype-imperfect">
+              Imperfect
+            </label>
+          </div>
+        </section>
+
+        <section class="config-section">
+          <h2 class="config-heading">Dimensions</h2>
+          <div class="input-row">
+            <label for="input-rows">Rows:</label>
+            <input type="number" id="input-rows" min="5" max="100" value="15" class="dim-input">
+          </div>
+          <div class="input-row">
+            <label for="input-cols">Cols:</label>
+            <input type="number" id="input-cols" min="5" max="100" value="15" class="dim-input">
+          </div>
+          <div class="validation-error" id="dim-error" hidden></div>
+        </section>
+
+        <section class="config-section">
+          <h2 class="config-heading">Seed</h2>
+          <div class="input-row">
+            <input type="number" id="input-seed" class="seed-input" placeholder="Auto">
+            <button id="btn-copy-seed" class="small-btn" title="Copy seed">Copy</button>
+          </div>
+        </section>
+
+        <section class="config-section" id="section-density">
+          <h2 class="config-heading">Density</h2>
+          <div class="slider-row">
+            <input type="range" id="slider-density" min="0" max="100" value="50" class="slider">
+            <span id="density-value" class="slider-value">0.5</span>
+          </div>
+        </section>
+
+        <section class="config-section" id="section-dead-ends" hidden>
+          <h2 class="config-heading">Dead Ends</h2>
+          <div class="slider-row">
+            <input type="range" id="slider-dead-ends" min="0" max="100" value="30" class="slider">
+            <span id="dead-ends-value" class="slider-value">0.3</span>
+          </div>
+        </section>
+
+        <section class="config-section" id="section-symmetry" hidden>
+          <h2 class="config-heading">Symmetry</h2>
+          <select id="select-symmetry" class="select-input">
+            <option value="none">None</option>
+            <option value="horizontal">Horizontal</option>
+            <option value="vertical">Vertical</option>
+            <option value="both">Both</option>
+          </select>
+          <label class="checkbox-label">
+            <input type="checkbox" id="check-wrapping">
+            Edge Wrapping
+          </label>
+        </section>
+
+        <section class="config-section config-actions">
+          <button id="btn-generate" class="primary-btn">Generate</button>
+          <button id="btn-regenerate" class="secondary-btn">Regenerate</button>
+        </section>
+      </aside>
+
+      <!-- Canvas Viewport (Center) -->
+      <main class="canvas-viewport" id="canvas-viewport">
+        <canvas id="maze-canvas" tabindex="0"></canvas>
+        <div class="coordinates" id="coordinates">--</div>
+        <canvas id="minimap-canvas" class="minimap" hidden></canvas>
+        <div class="empty-state" id="empty-state">
+          <p>Select a maze type and click <strong>Generate</strong> to begin.</p>
+        </div>
+      </main>
+    </div>
+
+    <!-- Toolbar -->
+    <div class="toolbar" role="toolbar" aria-label="Editing tools">
+      <div class="tool-group">
+        <button class="tool-btn active" data-tool="pencil" title="Pencil (1)">✏️</button>
+        <button class="tool-btn" data-tool="eraser" title="Eraser (2)">🧹</button>
+        <button class="tool-btn" data-tool="rectangle" title="Rectangle (3)">▭</button>
+        <button class="tool-btn" data-tool="line" title="Line (4)">╱</button>
+        <button class="tool-btn" data-tool="floodFill" title="Flood Fill (5)">🪣</button>
+      </div>
+      <div class="tool-separator"></div>
+      <div class="tool-group">
+        <button class="tool-btn toggle-btn" id="btn-paint-mode" title="Toggle Wall/Path (X)">
+          <span id="paint-mode-label">Wall</span>
+        </button>
+      </div>
+      <div class="tool-separator"></div>
+      <div class="tool-group">
+        <button class="tool-btn" id="btn-undo" title="Undo (Ctrl+Z)" disabled>Undo</button>
+        <button class="tool-btn" id="btn-redo" title="Redo (Ctrl+Shift+Z)" disabled>Redo</button>
+      </div>
+      <div class="tool-separator"></div>
+      <div class="tool-group">
+        <label class="toolbar-checkbox" title="Show solution path">
+          <input type="checkbox" id="check-path"> Path
+        </label>
+        <label class="toolbar-checkbox" title="Highlight unreachable">
+          <input type="checkbox" id="check-unreachable"> Unreachable
+        </label>
+        <label class="toolbar-checkbox" title="Show grid lines">
+          <input type="checkbox" id="check-grid" checked> Grid
+        </label>
+      </div>
+    </div>
+
+    <!-- Status Bar -->
+    <footer class="status-bar" aria-live="polite" id="status-bar">
+      <span id="status-seed">Seed: --</span>
+      <span class="status-sep">|</span>
+      <span id="status-dims">--×--</span>
+      <span class="status-sep">|</span>
+      <span id="status-type">No maze</span>
+      <span id="status-warning" class="status-warning" hidden>⚠ No path found</span>
+    </footer>
+
+    <!-- Modal Container -->
+    <div id="modal-overlay" class="modal-overlay" hidden>
+      <div class="modal" role="dialog" aria-modal="true" id="modal-content"></div>
+    </div>
+  </div>
+
+  <script type="module" src="js/app.js"></script>
+  <!-- Fallback message for file:// protocol -->
+  <noscript>
+    <p style="color:white;padding:20px;">Maze Builder requires JavaScript and must be served over HTTP. Run a local server.</p>
+  </noscript>
+</body>
+</html>
