@@ -74,7 +74,7 @@ export class GenerationController {
     const density = config.density ?? 0.5;
     const deadEndFrequency = config.deadEndFrequency ?? 0.3;
     const symmetry = config.symmetry || 'none';
-    const edgeWrapping = config.edgeWrapping || false;
+    const edgeWrapping = config.edgeWrapping || 'none';
 
     let result;
 
