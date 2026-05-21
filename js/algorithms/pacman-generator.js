@@ -58,7 +58,7 @@ class UnionFind {
  */
 export function generatePacManMaze(rows, columns, config, rng) {
   const symmetry = config.symmetry || 'none';
-  const edgeWrapping = config.edgeWrapping || false;
+  const edgeWrapping = config.edgeWrapping || 'none';
 
   let cells;
 
@@ -69,8 +69,8 @@ export function generatePacManMaze(rows, columns, config, rng) {
   }
 
   // Apply edge wrapping connections if enabled
-  if (edgeWrapping) {
-    var wrappedCells = applyEdgeWrapping(cells, rows, columns, rng);
+  if (edgeWrapping && edgeWrapping !== 'none') {
+    var wrappedCells = applyEdgeWrapping(cells, rows, columns, edgeWrapping, rng);
   }
 
   // Remove any remaining dead ends
@@ -287,77 +287,90 @@ function eliminateDeadEnds(cells, rows, columns, edgeWrapping, rng) {
 /**
  * Apply edge wrapping by opening pathway connections at edges.
  * Returns a Set of cell indices that are edge-wrap tunnels (protected from repair).
+ * @param {Uint8Array} cells
+ * @param {number} rows
+ * @param {number} columns
+ * @param {string} edgeWrapping - 'horizontal', 'vertical', or 'both'
+ * @param {Function} rng
+ * @returns {Set<number>}
  */
-function applyEdgeWrapping(cells, rows, columns, rng) {
+function applyEdgeWrapping(cells, rows, columns, edgeWrapping, rng) {
   const wrappedCells = new Set();
+  const wrapH = edgeWrapping === 'horizontal' || edgeWrapping === 'both';
+  const wrapV = edgeWrapping === 'vertical' || edgeWrapping === 'both';
   let horizontalOpened = 0;
   let verticalOpened = 0;
 
   // Open horizontal wrap connections (left edge ↔ right edge)
-  for (let r = 1; r < rows - 1; r++) {
-    const leftIdx = rowColToIndex(r, 0, columns);
-    const rightIdx = rowColToIndex(r, columns - 1, columns);
-    const leftInner = rowColToIndex(r, 1, columns);
-    const rightInner = rowColToIndex(r, columns - 2, columns);
+  if (wrapH) {
+    for (let r = 1; r < rows - 1; r++) {
+      const leftIdx = rowColToIndex(r, 0, columns);
+      const rightIdx = rowColToIndex(r, columns - 1, columns);
+      const leftInner = rowColToIndex(r, 1, columns);
+      const rightInner = rowColToIndex(r, columns - 2, columns);
 
-    if (cells[leftInner] !== WALL && cells[rightInner] !== WALL) {
-      if (rng() < 0.5) {
-        cells[leftIdx] = PATHWAY;
-        cells[rightIdx] = PATHWAY;
-        wrappedCells.add(leftIdx);
-        wrappedCells.add(rightIdx);
-        horizontalOpened++;
+      if (cells[leftInner] !== WALL && cells[rightInner] !== WALL) {
+        if (rng() < 0.5) {
+          cells[leftIdx] = PATHWAY;
+          cells[rightIdx] = PATHWAY;
+          wrappedCells.add(leftIdx);
+          wrappedCells.add(rightIdx);
+          horizontalOpened++;
+        }
+      }
+    }
+
+    // Guarantee at least one horizontal tunnel
+    if (horizontalOpened === 0) {
+      for (let r = 1; r < rows - 1; r++) {
+        const leftInner = rowColToIndex(r, 1, columns);
+        const rightInner = rowColToIndex(r, columns - 2, columns);
+        if (cells[leftInner] !== WALL && cells[rightInner] !== WALL) {
+          const leftIdx = rowColToIndex(r, 0, columns);
+          const rightIdx = rowColToIndex(r, columns - 1, columns);
+          cells[leftIdx] = PATHWAY;
+          cells[rightIdx] = PATHWAY;
+          wrappedCells.add(leftIdx);
+          wrappedCells.add(rightIdx);
+          break;
+        }
       }
     }
   }
 
   // Open vertical wrap connections (top edge ↔ bottom edge)
-  for (let c = 1; c < columns - 1; c++) {
-    const topIdx = rowColToIndex(0, c, columns);
-    const bottomIdx = rowColToIndex(rows - 1, c, columns);
-    const topInner = rowColToIndex(1, c, columns);
-    const bottomInner = rowColToIndex(rows - 2, c, columns);
-
-    if (cells[topInner] !== WALL && cells[bottomInner] !== WALL) {
-      if (rng() < 0.5) {
-        cells[topIdx] = PATHWAY;
-        cells[bottomIdx] = PATHWAY;
-        wrappedCells.add(topIdx);
-        wrappedCells.add(bottomIdx);
-        verticalOpened++;
-      }
-    }
-  }
-
-  // Guarantee at least one tunnel in each axis
-  if (horizontalOpened === 0) {
-    for (let r = 1; r < rows - 1; r++) {
-      const leftInner = rowColToIndex(r, 1, columns);
-      const rightInner = rowColToIndex(r, columns - 2, columns);
-      if (cells[leftInner] !== WALL && cells[rightInner] !== WALL) {
-        const leftIdx = rowColToIndex(r, 0, columns);
-        const rightIdx = rowColToIndex(r, columns - 1, columns);
-        cells[leftIdx] = PATHWAY;
-        cells[rightIdx] = PATHWAY;
-        wrappedCells.add(leftIdx);
-        wrappedCells.add(rightIdx);
-        break;
-      }
-    }
-  }
-
-  if (verticalOpened === 0) {
+  if (wrapV) {
     for (let c = 1; c < columns - 1; c++) {
+      const topIdx = rowColToIndex(0, c, columns);
+      const bottomIdx = rowColToIndex(rows - 1, c, columns);
       const topInner = rowColToIndex(1, c, columns);
       const bottomInner = rowColToIndex(rows - 2, c, columns);
+
       if (cells[topInner] !== WALL && cells[bottomInner] !== WALL) {
-        const topIdx = rowColToIndex(0, c, columns);
-        const bottomIdx = rowColToIndex(rows - 1, c, columns);
-        cells[topIdx] = PATHWAY;
-        cells[bottomIdx] = PATHWAY;
-        wrappedCells.add(topIdx);
-        wrappedCells.add(bottomIdx);
-        break;
+        if (rng() < 0.5) {
+          cells[topIdx] = PATHWAY;
+          cells[bottomIdx] = PATHWAY;
+          wrappedCells.add(topIdx);
+          wrappedCells.add(bottomIdx);
+          verticalOpened++;
+        }
+      }
+    }
+
+    // Guarantee at least one vertical tunnel
+    if (verticalOpened === 0) {
+      for (let c = 1; c < columns - 1; c++) {
+        const topInner = rowColToIndex(1, c, columns);
+        const bottomInner = rowColToIndex(rows - 2, c, columns);
+        if (cells[topInner] !== WALL && cells[bottomInner] !== WALL) {
+          const topIdx = rowColToIndex(0, c, columns);
+          const bottomIdx = rowColToIndex(rows - 1, c, columns);
+          cells[topIdx] = PATHWAY;
+          cells[bottomIdx] = PATHWAY;
+          wrappedCells.add(topIdx);
+          wrappedCells.add(bottomIdx);
+          break;
+        }
       }
     }
   }

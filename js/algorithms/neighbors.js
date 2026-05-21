@@ -8,7 +8,8 @@
  * @param {number} index - Cell index in flat array
  * @param {number} columns - Grid column count
  * @param {number} rows - Grid row count
- * @param {boolean} edgeWrapping - Whether opposing edges are connected
+ * @param {boolean|string} edgeWrapping - false/'none' for no wrapping,
+ *   true/'both' for all edges, 'horizontal' for left↔right, 'vertical' for top↔bottom
  * @returns {number[]} Array of valid neighbor indices
  */
 export function getCardinalNeighbors(index, columns, rows, edgeWrapping) {
@@ -16,31 +17,35 @@ export function getCardinalNeighbors(index, columns, rows, edgeWrapping) {
   const col = index % columns;
   const neighbors = [];
 
+  // Determine which axes wrap
+  const wrapV = edgeWrapping === true || edgeWrapping === 'vertical' || edgeWrapping === 'both';
+  const wrapH = edgeWrapping === true || edgeWrapping === 'horizontal' || edgeWrapping === 'both';
+
   // Up
   if (row > 0) {
     neighbors.push((row - 1) * columns + col);
-  } else if (edgeWrapping) {
+  } else if (wrapV) {
     neighbors.push((rows - 1) * columns + col);
   }
 
   // Down
   if (row < rows - 1) {
     neighbors.push((row + 1) * columns + col);
-  } else if (edgeWrapping) {
+  } else if (wrapV) {
     neighbors.push(col);
   }
 
   // Left
   if (col > 0) {
     neighbors.push(row * columns + (col - 1));
-  } else if (edgeWrapping) {
+  } else if (wrapH) {
     neighbors.push(row * columns + (columns - 1));
   }
 
   // Right
   if (col < columns - 1) {
     neighbors.push(row * columns + (col + 1));
-  } else if (edgeWrapping) {
+  } else if (wrapH) {
     neighbors.push(row * columns);
   }
 

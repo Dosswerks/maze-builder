@@ -95,7 +95,7 @@ export function validateClassicImperfect(cells, rows, columns) {
  */
 export function validatePacMan(cells, rows, columns, config) {
   const errors = [];
-  const edgeWrapping = config.edgeWrapping || false;
+  const edgeWrapping = config.edgeWrapping || 'none';
   const size = rows * columns;
 
   // Find first pathway cell for connectivity check
@@ -149,7 +149,10 @@ export function validatePacMan(cells, rows, columns, config) {
   }
 
   // Check wrapping boundary 2x2 rooms if wrapping enabled
-  if (edgeWrapping) {
+  const wrapH = edgeWrapping === 'horizontal' || edgeWrapping === 'both';
+  const wrapV = edgeWrapping === 'vertical' || edgeWrapping === 'both';
+
+  if (wrapH) {
     // Check right-edge wrap (last col + first col)
     for (let r = 0; r < rows - 1; r++) {
       const tl = r * columns + (columns - 1);
@@ -161,6 +164,8 @@ export function validatePacMan(cells, rows, columns, config) {
         errors.push(`2x2 room at wrap boundary row ${r}`);
       }
     }
+  }
+  if (wrapV) {
     // Check bottom-edge wrap (last row + first row)
     for (let c = 0; c < columns - 1; c++) {
       const tl = (rows - 1) * columns + c;
