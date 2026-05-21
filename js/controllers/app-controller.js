@@ -18,6 +18,7 @@ import { Toolbar } from '../ui/toolbar.js';
 import { StatusBar } from '../ui/status-bar.js';
 import { initKeyboard } from '../ui/keyboard.js';
 import { showRecoveryPrompt, showConfirmation } from '../ui/modals.js';
+import { gameObjects, activeObjectTool, placeGameObject, renderGameObjects } from '../ui/game-objects.js';
 
 export class AppController {
   constructor() {
@@ -64,6 +65,9 @@ export class AppController {
     this.renderer.setOverlayCallback(() => {
       this.overlays.render();
       this.toolPreview.render();
+      // Render game objects on top
+      const ctx = this.renderer.canvas.getContext('2d');
+      renderGameObjects(ctx, this.store);
     });
 
     // Start autosave
@@ -93,6 +97,13 @@ export class AppController {
       const y = e.clientY - rect.top;
       const cell = this.renderer.cellAtPixel(x, y);
       if (!cell) return;
+
+      // If an object tool is active, place object instead of painting
+      if (activeObjectTool) {
+        const idx = cell.row * this.store.maze.columns + cell.col;
+        placeGameObject(idx, activeObjectTool, this.store);
+        return;
+      }
 
       isPointerDown = true;
       canvas.setPointerCapture(e.pointerId);
@@ -209,6 +220,16 @@ export class AppController {
       document.getElementById('input-seed').value = maze.seed;
       // Show/hide minimap
       document.getElementById('minimap-canvas').hidden = !(maze.rows > 30 || maze.columns > 30);
+      // Show/hide object tools (Pac-Man only)
+      document.getElementById('object-tools').hidden = maze.type !== 'pacman';
+      // Clear game objects on new maze
+      gameObjects.clear();
+      document.querySelectorAll('.obj-btn').forEach(b => b.classList.remove('active'));
+    });
+
+    // Re-render when objects are placed/removed
+    this.store.subscribe('objects-changed', () => {
+      this.renderer.render();
     });
   }
 
