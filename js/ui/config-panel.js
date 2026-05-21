@@ -124,7 +124,7 @@ export class ConfigPanel {
       density: parseInt(document.getElementById('slider-density').value, 10) / 100,
       deadEndFrequency: parseInt(document.getElementById('slider-dead-ends').value, 10) / 100,
       symmetry: document.getElementById('select-symmetry').value,
-      edgeWrapping: document.getElementById('check-wrapping').checked,
+      edgeWrapping: document.getElementById('select-wrapping').value,
     };
   }
 }

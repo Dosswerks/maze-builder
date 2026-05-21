@@ -85,7 +85,15 @@ const HELP_CONTENT = {
         <tr><td><strong>Vertical</strong></td><td>Top half is mirrored to the bottom.</td></tr>
         <tr><td><strong>Both</strong></td><td>Top-left quadrant is mirrored on both axes. Requires at least 7&times;7 grid.</td></tr>
       </table>
-      <p><strong>Edge Wrapping:</strong> When checked, the left edge connects to the right edge and the top connects to the bottom &mdash; like the tunnels in the original Pac-Man.</p>
+      <p><strong>Edge Wrapping:</strong></p>
+      <table>
+        <tr><th>Option</th><th>Description</th></tr>
+        <tr><td><strong>None</strong></td><td>No wrapping. Edges are solid walls.</td></tr>
+        <tr><td><strong>Horizontal</strong></td><td>Left edge connects to right edge &mdash; like side tunnels in Pac-Man.</td></tr>
+        <tr><td><strong>Vertical</strong></td><td>Top edge connects to bottom edge.</td></tr>
+        <tr><td><strong>Both</strong></td><td>All edges wrap. Left&harr;Right and Top&harr;Bottom.</td></tr>
+      </table>
+      <p>Tunnel openings are marked with blue arrows on the maze edges.</p>
     </div>
     <div class="modal-actions"><button class="primary-btn" id="modal-ok">Got it</button></div>
   `,
